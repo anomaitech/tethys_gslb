@@ -1,0 +1,156 @@
+{% extends tethys_app.package|add:"/base.html" %}
+{% load tethys %}
+
+{% block header_buttons %}
+  <div class="header-button glyphicon-button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Help">
+    <a data-bs-toggle="modal" data-bs-target="#help-modal"><i class="bi bi-question-circle"></i></a>
+  </div>
+{% endblock %}
+
+{% block app_content %}
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-12">
+        <h1 class="text-center mb-4">
+          <i class="bi bi-droplet-half text-primary"></i>
+          Groundwater Management Platform
+        </h1>
+        <p class="lead text-center mb-5">
+          Comprehensive platform for groundwater monitoring, analysis, and modeling
+        </p>
+      </div>
+    </div>
+
+    <!-- Feature Cards -->
+    <div class="row mb-5">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body text-center">
+            <i class="bi bi-geo-alt fs-1 text-primary mb-3"></i>
+            <h5 class="card-title">Well Management</h5>
+            <p class="card-text">Monitor and manage groundwater wells, track water levels, and maintain well records.</p>
+            {% gizmo wells_button %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body text-center">
+            <i class="bi bi-layers fs-1 text-info mb-3"></i>
+            <h5 class="card-title">Aquifer Analysis</h5>
+            <p class="card-text">Analyze aquifer properties, transmissivity, and hydraulic characteristics.</p>
+            {% gizmo aquifer_button %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body text-center">
+            <i class="bi bi-droplet fs-1 text-success mb-3"></i>
+            <h5 class="card-title">Water Quality</h5>
+            <p class="card-text">Monitor water quality parameters and track contamination plumes.</p>
+            {% gizmo quality_button %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body text-center">
+            <i class="bi bi-graph-up fs-1 text-warning mb-3"></i>
+            <h5 class="card-title">Groundwater Modeling</h5>
+            <p class="card-text">Run MODFLOW simulations and analyze groundwater flow patterns.</p>
+            {% gizmo modeling_button %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overview Map -->
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">
+              <i class="bi bi-map"></i>
+              Project Area Overview
+            </h5>
+          </div>
+          <div class="card-body">
+            {% gizmo map_view %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics Dashboard -->
+    <div class="row mt-4">
+      <div class="col-md-3">
+        <div class="card bg-primary text-white">
+          <div class="card-body text-center">
+            <h3>42</h3>
+            <p>Active Wells</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card bg-success text-white">
+          <div class="card-body text-center">
+            <h3>8.5m</h3>
+            <p>Avg. Water Level</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card bg-warning text-white">
+          <div class="card-body text-center">
+            <h3>2.3</h3>
+            <p>Running Models</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card bg-info text-white">
+          <div class="card-body text-center">
+            <h3>95%</h3>
+            <p>Data Quality</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{# Use the after_app_content block for modals #}
+{% block after_app_content %}
+  <!-- Example Modal -->
+  <div class="modal fade" id="help-modal" tabindex="-1" role="dialog" aria-labelledby="help-modal-label">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="help-modal-label">Example Modal</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>You can add custom buttons to the app header using the <code>header_buttons</code> block. Use anchor/link tags for the button and wrap it in a div with the class <code>header-button</code>. For buttons with the gliphyicons, add the <code>glyphicon-button</code> class as well.</p>
+          <p>Ever have trouble using a modal in a Tethys app? Use the <code>after_app_content</code> block for modal content to allow them to function properly. See: <a href="https://getbootstrap.com/docs/5.1/components/modal/">Bootstrap Modals</a></p>
+          <p>Add tooltips to any element by adding the <code>data-bs-toggle</code>, <code>data-bs-placement</code>, and <code>title</code> attributes to the button. See: <a href="https://getbootstrap.com/docs/5.1/components/tooltips/">Bootstrap Tooltips</a></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block app_actions %}
+  {% gizmo save_button %}
+  {% gizmo edit_button %}
+  {% gizmo remove_button %}
+  {% gizmo previous_button %}
+  {% gizmo next_button %}
+{% endblock %}
