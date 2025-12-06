@@ -1,0 +1,116 @@
+{% extends tethys_app.package|add:"/base.html" %}
+{% load tethys %}
+
+{% block title %}Imported Basins{% endblock %}
+
+{% block app_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="bi bi-database"></i> Imported Basins</h2>
+            <p class="text-muted">View all basins and their imported data</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle"></i> Error loading basins: {{ error }}
+    </div>
+    {% endif %}
+
+    {% if basins %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-table"></i> Basins Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Basin Name</th>
+                                    <th>Description</th>
+                                    <th>Schema</th>
+                                    <th>Latitude Column</th>
+                                    <th>Longitude Column</th>
+                                    <th>Date Column</th>
+                                    <th>Value Columns</th>
+                                    <th>Records</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for basin in basins %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ basin.name }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ basin.description|default:"—" }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ basin.scheme_name }}</span>
+                                    </td>
+                                    <td>
+                                        <code>{{ basin.latitude_column }}</code>
+                                    </td>
+                                    <td>
+                                        <code>{{ basin.longitude_column }}</code>
+                                    </td>
+                                    <td>
+                                        <code>{{ basin.date_column }}</code>
+                                    </td>
+                                    <td>
+                                        {% for val_col in basin.value_columns %}
+                                            <span class="badge bg-secondary me-1">{{ val_col }}</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ basin.record_count|default:0 }}</span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ basin.created_at|date:"Y-m-d H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewBasinData({{ basin.id }}, '{{ basin.name }}')" title="View Data">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteBasin({{ basin.id }}, '{{ basin.name }}')" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No basins have been imported yet. 
+        <a href="{% url 'gwapp:upload_data' %}" class="alert-link">Upload and import data</a> to create your first basin.
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function viewBasinData(basinId, basinName) {
+    alert('Viewing data for basin: ' + basinName + ' (ID: ' + basinId + ')\n\nThis feature will show the data table for this basin.');
+    // TODO: Implement data viewing
+}
+
+function deleteBasin(basinId, basinName) {
+    if (confirm('Are you sure you want to delete basin "' + basinName + '"?\n\nThis will delete all data associated with this basin. This action cannot be undone.')) {
+        alert('Delete functionality will be implemented here.\nBasin ID: ' + basinId);
+        // TODO: Implement delete functionality
+    }
+}
+</script>
+{% endblock %}
+

@@ -13,20 +13,379 @@
 {% block app_title %}{{ tethys_app.name }}{% endblock %}
 
 {% block app_navigation_items %}
-  <li class="nav-item title">App Navigation</li>
-  <li class="nav-item active"><a class="nav-link" href="">Home</a></li>
-  <li class="nav-item"><a class="nav-link" href="">Jobs</a></li>
-  <li class="nav-item"><a class="nav-link" href="">Results</a></li>
-  <li class="nav-item title">Steps</li>
-  <li class="nav-item"><a class="nav-link" href="">1. The First Step</a></li>
-  <li class="nav-item"><a class="nav-link" href="">2. The Second Step</a></li>
-  <li class="nav-item"><a class="nav-link" href="">3. The Third Step</a></li>
-  <li class="nav-item separator"></li>
-  <li class="nav-item"><a class="nav-link" href="">Get Started</a></li>
+  <!-- Custom Tabbed Navigation -->
+  <div class="gwapp-nav-tabs">
+    <div class="gwapp-nav-tab-buttons">
+        <a href="{% url 'gwapp:home' %}" class="gwapp-nav-tab-btn">
+            <i class="bi bi-house"></i> Home
+        </a>
+        <a href="{% url 'gwapp:settings' %}" class="gwapp-nav-tab-btn gwapp-nav-settings-link">
+            <i class="bi bi-gear-fill"></i> Settings
+        </a>
+    </div>
+
+    <!-- Tab Content in Navigation -->
+    <div class="gwapp-nav-tab-content">
+        <!-- Basins Panel (shown on Home page) -->
+        <div class="gwapp-nav-tab-panel active" id="nav-basins-panel">
+            <div class="nav-panel-content">
+                <h6><i class="bi bi-layers"></i> Basins</h6>
+                <div id="basins-list-container">
+                    <!-- Basins will be loaded here via JavaScript -->
+                    <div class="text-center text-muted py-2">
+                        <i class="bi bi-hourglass-split"></i> Loading basins...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+
+    </div>
+  </div>
+
+  <style>
+  /* Widen the navigation sidebar */
+  .app-sidebar {
+    width: 350px !important;
+    min-width: 350px !important;
+  }
+  
+  .app-content {
+    margin-left: 350px !important;
+  }
+  
+  @media (max-width: 768px) {
+    .app-sidebar {
+      width: 100% !important;
+      min-width: 100% !important;
+    }
+    
+    .app-content {
+      margin-left: 0 !important;
+    }
+  }
+  
+  .gwapp-nav-tabs {
+    background: linear-gradient(135deg, #ffffff, #f8f9fa);
+    border-radius: 10px;
+    margin: 15px 0 20px 0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e3e8ee;
+  }
+
+  .gwapp-nav-tab-buttons {
+    display: flex;
+    background: linear-gradient(135deg, #6c757d, #495057);
+    border-radius: 10px 10px 0 0;
+    padding: 0;
+    margin: 0;
+  }
+
+  .gwapp-nav-tab-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    padding: 12px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gwapp-nav-tab-btn:first-child {
+    border-radius: 10px 0 0 0;
+  }
+
+  .gwapp-nav-tab-btn:last-child {
+    border-right: none;
+    border-radius: 0 10px 0 0;
+  }
+
+  .gwapp-nav-tab-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .gwapp-nav-tab-btn:hover::before {
+    transform: translateX(0);
+  }
+
+  .gwapp-nav-tab-btn:hover {
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  .gwapp-nav-tab-btn.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-weight: 600;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .gwapp-nav-tab-btn.active::before {
+    display: none;
+  }
+  
+  /* Settings link styling */
+  .gwapp-nav-settings-link {
+    text-decoration: none !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .gwapp-nav-settings-link:hover {
+    text-decoration: none !important;
+    color: white !important;
+  }
+
+  .gwapp-nav-tab-content {
+    position: relative;
+    background: white;
+    border-radius: 0 0 10px 10px;
+  }
+
+  .gwapp-nav-tab-panel {
+    display: none;
+    padding: 20px;
+    min-height: 120px;
+  }
+
+  .gwapp-nav-tab-panel.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .nav-panel-content {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    border-left: 4px solid #6c757d;
+  }
+
+  .nav-panel-content h6 {
+    margin: 0 0 15px 0;
+    font-size: 0.9em;
+    color: #495057;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .nav-panel-content h6 i {
+    margin-right: 8px;
+    font-size: 1.1em;
+  }
+
+  .nav-stats {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+  }
+
+  .stat-mini {
+    background: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.75em;
+    color: #666;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 3px solid #6c757d;
+  }
+
+  .stat-mini strong {
+    color: #495057;
+    font-weight: 600;
+  }
+
+  .form-control-sm {
+    font-size: 0.8em;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 2px solid #e3e8ee;
+    transition: all 0.3s ease;
+  }
+
+  .form-control-sm:focus {
+    border-color: #6c757d;
+    box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .btn-sm {
+    font-size: 0.75em;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-primary.btn-sm {
+    background: linear-gradient(135deg, #6c757d, #495057);
+    border: none;
+    box-shadow: 0 3px 8px rgba(108, 117, 125, 0.3);
+  }
+
+  .btn-primary.btn-sm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+  }
+
+  .form-check {
+    background: white;
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid #e3e8ee;
+    margin: 8px 0;
+    transition: all 0.3s ease;
+  }
+
+  .form-check:hover {
+    border-color: #6c757d;
+    transform: translateX(3px);
+  }
+
+  .form-check-input:checked {
+    background-color: #6c757d;
+    border-color: #6c757d;
+  }
+
+  .form-check-label {
+    font-size: 0.85em;
+    font-weight: 500;
+    color: #333;
+    margin-left: 8px;
+  }
+
+  .form-check-label i {
+    margin-right: 6px;
+    color: #6c757d;
+  }
+
+  .layer-controls-section {
+    margin-top: 10px;
+  }
+
+  .upload-section {
+    margin-top: 10px;
+  }
+
+  .file-input-wrapper {
+    margin-bottom: 8px;
+  }
+
+  .upload-hint {
+    margin-bottom: 10px;
+  }
+
+  .upload-hint small {
+    display: flex;
+    align-items: center;
+    font-style: italic;
+  }
+
+  .upload-hint i {
+    margin-right: 6px;
+    color: #6c757d;
+  }
+
+  .dashboard-overview {
+    margin-top: 10px;
+  }
+
+  .quick-actions {
+    margin-top: 15px;
+    text-align: center;
+  }
+
+  .btn-outline-primary.btn-sm {
+    border: 2px solid #6c757d;
+    color: #6c757d;
+    background: transparent;
+  }
+
+  .btn-outline-primary.btn-sm:hover {
+    background: #6c757d;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+  }
+
+  .stat-mini {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .stat-mini i {
+    margin-right: 8px;
+    color: #6c757d;
+  }
+  
+  /* Ensure modal is visible with high z-index */
+  .modal {
+    z-index: 9999 !important;
+  }
+  
+  .modal-backdrop {
+    z-index: 9998 !important;
+  }
+  
+  .modal.show {
+    display: block !important;
+  }
+  
+  /* Force modal visibility when show class is present */
+  #addBasinsModal.show {
+    display: block !important;
+    background: rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Ensure file input is clickable */
+  .modal .form-control {
+    pointer-events: auto !important;
+    z-index: 10000 !important;
+    position: relative !important;
+  }
+  
+  /* Make sure all modal content is clickable */
+  .modal-content {
+    pointer-events: auto !important;
+    z-index: 10001 !important;
+  }
+  
+  /* File input specific fixes */
+  input[type="file"] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+  }
+  </style>
 {% endblock %}
 
 {% block app_content %}
 {% endblock %}
+
+<!-- Upload button is now integrated into the map legend panel -->
 
 {% block app_actions %}
 {% endblock %}
@@ -39,4 +398,420 @@
 {% block scripts %}
   {{ block.super }}
   <script src="{% static tethys_app|public:'js/main.js' %}" type="text/javascript"></script>
+  
+  <script>
+  console.log('🚀 GWApp JavaScript loading...');
+  console.log('🔍 Immediate check - Current time:', new Date().toISOString());
+  
+  $(document).ready(function() {
+      console.log('📱 Document ready, setting up UI...');
+      console.log('🔍 DOM Ready - Current time:', new Date().toISOString());
+      
+      // Setup tab functionality
+      setupTabFunctionality();
+      
+      // Debug: Check if Bootstrap is loaded
+      console.log('🔍 Checking Bootstrap availability...');
+      console.log('jQuery available:', typeof $ !== 'undefined');
+      console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
+      console.log('Bootstrap.Modal available:', typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined');
+      
+
+      
+      // Upload button is now integrated into the map legend panel
+      console.log('✅ Upload functionality ready');
+      
+      // Add menu customization for MapLayout pages
+      if (window.location.pathname.includes('/apps/gwapp/')) {
+          setTimeout(function() {
+              addMapMenuCustomization();
+          }, 2000);
+      }
+  });
+  
+  function setupTabFunctionality() {
+      console.log('📋 Setting up navigation tabs...');
+      
+      // Handle tab clicks
+      document.querySelectorAll('[data-tab]').forEach(button => {
+          button.addEventListener('click', function() {
+              const targetTab = this.getAttribute('data-tab');
+              console.log('🏷️ Switching to tab:', targetTab);
+              
+              // Remove active class from all tabs and panels
+              document.querySelectorAll('.gwapp-nav-tab-btn').forEach(btn => btn.classList.remove('active'));
+              document.querySelectorAll('.gwapp-nav-tab-panel').forEach(panel => panel.classList.remove('active'));
+              
+              // Add active class to clicked tab and corresponding panel
+              this.classList.add('active');
+              const targetPanel = document.getElementById('nav-' + targetTab + '-panel');
+              if (targetPanel) {
+                  targetPanel.classList.add('active');
+              }
+          });
+      });
+      
+      console.log('✅ Tab functionality initialized');
+  }
+  
+  function setupModalFunctionality() {
+      console.log('📂 Setting up modal functionality...');
+      
+      // Debug: Check if modal button exists
+      console.log('🔍 Looking for modal button with ID: add-basins-modal-btn');
+      var modalBtn = $('#add-basins-modal-btn');
+      console.log('🔍 Modal button found:', modalBtn.length > 0, modalBtn);
+      
+      // Debug: Check if modal exists
+      var modal = $('#addBasinsModal');
+      console.log('🔍 Modal element found:', modal.length > 0, modal);
+      
+      // Add event listener for modal button
+      $('#add-basins-modal-btn').on('click', function(e) {
+          e.preventDefault();
+          console.log('🎯 ADD BASINS BUTTON CLICKED!');
+          console.log('📂 Opening Add Basins modal...');
+          console.log('🔍 Modal element at click time:', $('#addBasinsModal').length);
+          
+          // Try multiple ways to show modal
+          // Try multiple approaches to show the modal
+          try {
+              console.log('🔧 Trying jQuery .modal("show")...');
+              $('#addBasinsModal').modal('show');
+              console.log('✅ jQuery modal show command sent');
+          } catch (error) {
+              console.error('❌ jQuery modal show failed:', error);
+          }
+          
+          // Try Bootstrap 5 syntax
+          try {
+              console.log('🔧 Trying Bootstrap 5 Modal...');
+              var modalElement = document.getElementById('addBasinsModal');
+              if (modalElement && typeof bootstrap !== 'undefined') {
+                  var bsModal = new bootstrap.Modal(modalElement);
+                  bsModal.show();
+                  console.log('✅ Bootstrap 5 modal show command sent');
+              }
+          } catch (bs5Error) {
+              console.error('❌ Bootstrap 5 modal show failed:', bs5Error);
+          }
+          
+          // Try direct CSS manipulation as fallback
+          try {
+              console.log('🔧 Trying direct CSS manipulation...');
+              var modal = document.getElementById('addBasinsModal');
+              if (modal) {
+                  modal.style.display = 'block';
+                  modal.classList.add('show');
+                  modal.style.paddingRight = '17px';
+                  document.body.classList.add('modal-open');
+                  
+                  // Add backdrop
+                  var backdrop = document.createElement('div');
+                  backdrop.className = 'modal-backdrop fade show';
+                  backdrop.id = 'modal-backdrop';
+                  document.body.appendChild(backdrop);
+                  
+                  console.log('✅ Manual modal display applied');
+              }
+          } catch (cssError) {
+              console.error('❌ CSS modal show failed:', cssError);
+          }
+      });
+      
+      // Use more robust event delegation for modal form
+      $(document).on('submit', '#modal-csv-upload-form', function(e) {
+          e.preventDefault();
+          console.log('🚀 MODAL FORM SUBMIT TRIGGERED VIA DELEGATION!');
+          
+          const fileInput = document.getElementById('modal_data_file');
+          console.log('🔍 File input element:', fileInput);
+          
+          if (!fileInput) {
+              console.error('❌ File input element not found!');
+              alert('File input not found. Please try again.');
+              return;
+          }
+          
+          const file = fileInput.files[0];
+          console.log('🔍 Selected file:', file);
+          
+          if (!file) {
+              console.warn('⚠️ No file selected');
+              alert('Please select a CSV file');
+              return;
+          }
+          
+          console.log('📤 Uploading file via modal:', file.name, 'Size:', file.size, 'bytes');
+          
+          // Call the unified upload function
+          handleModalUpload();
+      });
+      
+      // Debug: Add document-level click handler to catch any button clicks
+      $(document).on('click', 'button', function(e) {
+          var btn = $(this);
+          console.log('🖱️ Button clicked:', {
+              id: btn.attr('id'),
+              class: btn.attr('class'),
+              text: btn.text().trim(),
+              hasModalId: btn.attr('id') === 'add-basins-modal-btn'
+          });
+          
+          // If this is our modal button, handle it here too
+          if (btn.attr('id') === 'add-basins-modal-btn') {
+              console.log('🎯 MODAL BUTTON DETECTED VIA DOCUMENT CLICK!');
+              e.preventDefault();
+              e.stopPropagation();
+              
+              try {
+                  $('#addBasinsModal').modal('show');
+                  console.log('✅ Modal opened via document click handler');
+              } catch (error) {
+                  console.error('❌ Modal failed via document click handler:', error);
+              }
+          }
+      });
+      
+      // Add direct click handler for upload button as backup
+      $(document).on('click', '#modal-csv-upload-form button[type="submit"]', function(e) {
+          e.preventDefault();
+          console.log('🔘 Upload button clicked directly!');
+          
+          // Manually trigger the upload process
+          const fileInput = document.getElementById('modal_data_file');
+          if (!fileInput || !fileInput.files[0]) {
+              alert('Please select a CSV file');
+              return;
+          }
+          
+          console.log('📤 Starting manual upload process...');
+          handleModalUpload();
+      });
+      
+      // Debug: Add general submit button click handler
+      $(document).on('click', 'button[type="submit"]', function(e) {
+          console.log('🔘 Submit button clicked:', $(this).attr('id'), $(this).text().trim());
+          if ($(this).closest('#modal-csv-upload-form').length > 0) {
+              console.log('🎯 Upload button clicked inside modal form!');
+          }
+      });
+      
+      // Debug file input clicks
+      $(document).on('click', '#modal_data_file', function() {
+          console.log('📁 File input clicked!');
+      });
+      
+      // Handle file selection display
+      $(document).on('change', '#modal_data_file', function() {
+          const file = this.files[0];
+          const wrapper = $('.file-input-wrapper .file-input-display');
+          
+          if (file) {
+              console.log('📁 File selected:', file.name);
+              wrapper.html(`
+                  <i class="bi bi-file-earmark-check" style="font-size: 2rem; color: #28a745;"></i>
+                  <div style="margin-top: 10px;">
+                      <strong>${file.name}</strong><br>
+                      <small class="text-muted">${(file.size / 1024).toFixed(1)} KB</small>
+                  </div>
+              `);
+          } else {
+              wrapper.html(`
+                  <i class="bi bi-cloud-upload" style="font-size: 2rem; color: #6c757d;"></i>
+                  <div style="margin-top: 10px;">
+                      <strong>Click to choose CSV file</strong><br>
+                      <small class="text-muted">or drag and drop here</small>
+                  </div>
+              `);
+          }
+      });
+      
+      // Add click handler to file input wrapper
+      $(document).on('click', '.file-input-wrapper', function(e) {
+          console.log('🏷️ File input wrapper clicked!');
+          e.preventDefault();
+          document.getElementById('modal_data_file').click();
+      });
+      
+      // Add close modal functionality
+      $(document).on('click', '[data-bs-dismiss="modal"], .modal-backdrop', function() {
+          console.log('🔒 Closing modal...');
+          hideModal();
+      });
+      
+      console.log('✅ Modal functionality initialized');
+  }
+  
+  function hideModal() {
+      var modal = document.getElementById('addBasinsModal');
+      if (modal) {
+          modal.style.display = 'none';
+          modal.classList.remove('show');
+          document.body.classList.remove('modal-open');
+          
+          // Remove backdrop
+          var backdrop = document.getElementById('modal-backdrop');
+          if (backdrop) {
+              backdrop.remove();
+          }
+          
+          console.log('✅ Modal hidden manually');
+      }
+  }
+  
+  function handleModalUpload() {
+      console.log('🚀 Starting modal upload process...');
+      
+      const fileInput = document.getElementById('modal_data_file');
+      if (!fileInput) {
+          console.error('❌ File input not found!');
+          alert('File input not found. Please try again.');
+          return;
+      }
+      
+      const file = fileInput.files[0];
+      if (!file) {
+          console.warn('⚠️ No file selected');
+          alert('Please select a CSV file');
+          return;
+      }
+      
+      console.log('📤 Processing file:', file.name, 'Size:', file.size, 'bytes');
+      
+      // Show progress
+      $('#modal-upload-progress').show();
+      
+      const formData = new FormData();
+      formData.append('data_file', file);
+      
+      // Get CSRF token
+      const csrfToken = $('[name=csrfmiddlewaretoken]').val();
+      if (csrfToken) {
+          formData.append('csrfmiddlewaretoken', csrfToken);
+      } else {
+          console.warn('⚠️ CSRF token not found, trying without it');
+      }
+      
+      console.log('🌐 Sending AJAX request to /apps/gwapp/upload-data/');
+      
+      $.ajax({
+          url: '/apps/gwapp/upload-data/',
+          method: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+          },
+          success: function(data) {
+              console.log('✅ Upload successful:', data);
+              $('#modal-upload-progress').hide();
+              
+              if (data.success) {
+                  console.log('✅ Redirecting to:', data.redirect_url);
+                  $('#addBasinsModal').modal('hide');
+                  window.location.href = data.redirect_url;
+              } else {
+                  console.error('❌ Upload failed:', data.error);
+                  alert('Upload failed: ' + (data.error || 'Unknown error'));
+              }
+          },
+          error: function(xhr, status, error) {
+              console.error('❌ AJAX error:', {xhr, status, error});
+              console.error('❌ Response text:', xhr.responseText);
+              $('#modal-upload-progress').hide();
+              alert('Upload failed. Please check console for details.');
+          }
+      });
+  }
+  
+  function addMapMenuCustomization() {
+      console.log('🗺️ Setting up map menu customization...');
+      
+      // Watch for clicks on any button or dropdown trigger
+      $(document).on('click', 'button, .btn, [data-bs-toggle]', function(e) {
+          var element = $(this);
+          console.log('🖱️ Clicked:', element.attr('class'), element.text().trim());
+          
+          // Check for layer menu buttons specifically
+          if (element.closest('.layer-group').length > 0 || 
+              element.hasClass('dropdown-toggle') || 
+              element.attr('aria-expanded') !== undefined) {
+              console.log('🎯 Potential layer menu button clicked');
+              setTimeout(addCustomMenuItems, 200);
+          }
+      });
+      
+      // Periodic check for open menus
+      setInterval(function() {
+          var openMenus = $('[class*="dropdown"][class*="show"], [class*="menu"]:visible');
+          if (openMenus.length > 0) {
+              console.log('⏰ Found', openMenus.length, 'potentially open menus');
+              addCustomMenuItems();
+          }
+      }, 2000);
+  }
+  
+  function openTimeSeriesMapper() {
+      console.log('🎯 Opening Time Series Mapper...');
+      // Switch to Add Basins tab in navigation
+      $('.gwapp-nav-tab-btn').removeClass('active');
+      $('.gwapp-nav-tab-panel').removeClass('active');
+
+      $('#nav-add-basins-panel').addClass('active');
+  }
+  
+  // Initialize navigation tabs
+  $(document).on('click', '.gwapp-nav-tab-btn', function() {
+      var targetTab = $(this).data('tab');
+      console.log('📱 Navigation Tab clicked:', targetTab);
+      
+      // Remove active class from all buttons and panels
+      $('.gwapp-nav-tab-btn').removeClass('active');
+      $('.gwapp-nav-tab-panel').removeClass('active');
+      
+      // Add active class to clicked button and corresponding panel
+      $(this).addClass('active');
+      $('#nav-' + targetTab + '-panel').addClass('active');
+  });
+  
+  function addCustomMenuItems() {
+      console.log('🔍 Searching for menus to customize...');
+      
+      // Find all possible menu containers
+      var menuElements = $([
+          '.dropdown-menu:visible',
+          '.popover-content:visible', 
+          '[role="menu"]:visible',
+          '.layer-options:visible',
+          '.menu:visible'
+      ].join(','));
+      
+      console.log('📋 Found', menuElements.length, 'potential menu elements');
+      
+      menuElements.each(function(i) {
+          var menu = $(this);
+          console.log('📝 Menu', i, ':', menu.attr('class'), 'Children:', menu.children().length);
+          
+          if (!menu.find('.gwapp-custom-item').length) {
+              var customItem = $('<div class="gwapp-custom-item dropdown-item" style="background:#e3f2fd;color:#1976d2;font-weight:bold;cursor:pointer;padding:8px 12px;margin:2px;border-radius:4px;"><i class="bi bi-graph-up"></i> Map Time Series Data</div>');
+              
+              customItem.on('click', function(e) {
+                  console.log('🎯 Custom menu item clicked!');
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openTimeSeriesMapper();
+              });
+              
+              menu.append('<div style="border-top:1px solid #eee;margin:4px 0;"></div>');
+              menu.append(customItem);
+              console.log('✅ Added custom item to menu', i);
+          }
+      });
+  }
+  
+
+  </script>
 {% endblock %}
+

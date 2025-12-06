@@ -1,0 +1,2144 @@
+{% extends "gwapp/base.html" %}
+{% load tethys %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block app_content %}
+<div class="container-fluid" style="padding: 20px;">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="bi bi-gear-fill"></i> {{ page_title }}</h2>
+            <p class="text-muted">{{ page_subtitle }}</p>
+            <hr>
+        </div>
+    </div>
+    
+    <!-- Settings Tabs -->
+    <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="schema-tab" data-bs-toggle="tab" data-bs-target="#schema-panel" type="button" role="tab" aria-controls="schema-panel" aria-selected="false">
+                <i class="bi bi-collection"></i> Schema Management
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-panel" type="button" role="tab" aria-controls="upload-panel" aria-selected="false">
+                <i class="bi bi-upload"></i> Upload File
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="basins-tab" data-bs-toggle="tab" data-bs-target="#basins-panel" type="button" role="tab" aria-controls="basins-panel" aria-selected="false">
+                <i class="bi bi-table"></i> Imported Basins
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="api-tab" data-bs-toggle="tab" data-bs-target="#api-panel" type="button" role="tab" aria-controls="api-panel" aria-selected="false">
+                <i class="bi bi-code-slash"></i> API
+            </button>
+        </li>
+    </ul>
+    
+    <script>
+    // Handle tab parameter from URL
+    $(document).ready(function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tab = urlParams.get('tab') || '{{ active_tab|default:"schema" }}';
+        
+        // Remove active class from all tabs
+        $('.nav-link').removeClass('active');
+        $('.tab-pane').removeClass('show active');
+        
+        // Activate the specified tab
+        const tabButton = $('#' + tab + '-tab');
+        const tabPanel = $('#' + tab + '-panel');
+        
+        if (tabButton.length && tabPanel.length) {
+            tabButton.addClass('active').attr('aria-selected', 'true');
+            tabPanel.addClass('show active');
+        } else {
+            // Default to schema tab
+            $('#schema-tab').addClass('active').attr('aria-selected', 'true');
+            $('#schema-panel').addClass('show active');
+        }
+    });
+    </script>
+    
+    <!-- Tab Content -->
+    <div class="tab-content" id="settingsTabContent">
+        <!-- Schema Management Tab -->
+        <div class="tab-pane fade" id="schema-panel" role="tabpanel" aria-labelledby="schema-tab">
+            <div class="row">
+                <!-- Column Schemes Configuration -->
+                <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-collection"></i> Column Schemes Management
+                    </h5>
+                    <button class="btn btn-light btn-sm" onclick="createNewScheme()">
+                        <i class="bi bi-plus-lg"></i> New Scheme
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Create and manage column mapping schemes for different CSV formats. Each scheme defines which columns are required and their expected names.</p>
+                    
+                    <!-- Scheme Selection -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <label for="scheme-selector" class="form-label fw-bold">Active Column Scheme</label>
+                            <select class="form-select" id="scheme-selector" onchange="onSchemeSelected()">
+                                <option value="">Select a scheme...</option>
+                            </select>
+                            <div class="form-text">Choose which column scheme to use for CSV uploads</div>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="btn-group w-100" role="group">
+                                <button id="edit-scheme-btn" class="btn btn-outline-secondary" onclick="editSelectedScheme()" disabled>
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                                <button id="delete-scheme-btn" class="btn btn-outline-dark" onclick="deleteSelectedScheme()" disabled>
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                                <button id="copy-scheme-btn" class="btn btn-outline-secondary" onclick="copySelectedScheme()" disabled>
+                                    <i class="bi bi-files"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Schemes List -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="mb-3"><i class="bi bi-list-ul"></i> All Available Schemes</h5>
+                            <div id="schemes-list-container" class="list-group">
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-hourglass-split"></i> Loading schemes...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Scheme Editor -->
+                    <div id="scheme-editor" style="display: none;">
+                        <div class="card border-primary">
+                            <div class="card-header bg-secondary text-white">
+                                <h6 class="mb-0"><i class="bi bi-gear"></i> Scheme Editor</h6>
+                            </div>
+                            <div class="card-body">
+                                <form id="scheme-form">
+                                    {% csrf_token %}
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="scheme-name" class="form-label fw-bold">Scheme Name</label>
+                                            <input type="text" class="form-control" id="scheme-name" placeholder="e.g., Standard Format, USGS Format" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="scheme-description" class="form-label fw-bold">Description</label>
+                                            <input type="text" class="form-control" id="scheme-description" placeholder="Brief description of this format">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Required Columns</label>
+                                        <div id="required-columns-list" class="list-group mb-2">
+                                            <!-- Dynamic required columns will be added here -->
+                                        </div>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addRequiredColumn()">
+                                            <i class="bi bi-plus"></i> Add Required Column
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Optional Columns</label>
+                                        <div id="optional-columns-list" class="list-group mb-2">
+                                            <!-- Dynamic optional columns will be added here -->
+                                        </div>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addOptionalColumn()">
+                                            <i class="bi bi-plus"></i> Add Optional Column
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-secondary">
+                                            <i class="bi bi-save"></i> Save Scheme
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" onclick="cancelSchemeEdit()">
+                                            <i class="bi bi-x-circle"></i> Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Scheme Preview -->
+                    <div id="scheme-preview" style="display: none;">
+                        <div class="card border-success">
+                            <div class="card-header bg-secondary text-white">
+                                <h6 class="mb-0"><i class="bi bi-eye"></i> Scheme Preview: <span id="preview-scheme-name"></span></h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="text-danger">Required Columns</h6>
+                                        <ul id="preview-required-columns" class="list-group list-group-flush">
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="text-muted">Optional Columns</h6>
+                                        <ul id="preview-optional-columns" class="list-group list-group-flush">
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+            </div>
+        </div>
+        
+        <!-- Upload File Tab -->
+        <div class="tab-pane fade" id="upload-panel" role="tabpanel" aria-labelledby="upload-tab">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="bi bi-upload"></i> Upload CSV File</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">Upload a CSV file containing well data. After uploading, you'll be able to map the columns to your schema.</p>
+                            
+                            <form id="upload-form-settings" method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="hidden" name="from_settings" value="true">
+                                <div class="mb-3">
+                                    <label for="data_file" class="form-label fw-bold">Select CSV File</label>
+                                    <input type="file" class="form-control" id="data_file" name="data_file" accept=".csv" required>
+                                    <div class="form-text">Choose a CSV file to upload and map. After mapping, you'll be returned to the Imported Basins tab.</div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-secondary">
+                                    <i class="bi bi-upload"></i> Upload & Map Columns
+                                </button>
+                            </form>
+                            
+                            <div id="upload-progress" class="mt-3" style="display: none;">
+                                <div class="progress">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                                </div>
+                                <div class="text-center mt-2">
+                                    <small class="text-muted">Uploading and processing file...</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Imported Basins Tab -->
+        <div class="tab-pane fade" id="basins-panel" role="tabpanel" aria-labelledby="basins-tab">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="bi bi-table"></i> Imported Basins</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if basins %}
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Basin Name</th>
+                                            <th>Description</th>
+                                            <th>Schema</th>
+                                            <th>Latitude Column</th>
+                                            <th>Longitude Column</th>
+                                            <th>Date Column</th>
+                                            <th>Value Columns</th>
+                                            <th>Records</th>
+                                            <th>Created</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for basin in basins %}
+                                        <tr>
+                                            <td><strong>{{ basin.name }}</strong></td>
+                                            <td>{{ basin.description|default:"—" }}</td>
+                                            <td><span class="badge bg-secondary">{{ basin.scheme_name }}</span></td>
+                                            <td><code>{{ basin.latitude_column }}</code></td>
+                                            <td><code>{{ basin.longitude_column }}</code></td>
+                                            <td><code>{{ basin.date_column }}</code></td>
+                                            <td>
+                                                {% for val_col in basin.value_columns %}
+                                                    <span class="badge bg-secondary me-1">{{ val_col }}</span>
+                                                {% endfor %}
+                                            </td>
+                                            <td><span class="badge bg-secondary">{{ basin.record_count|default:0 }}</span></td>
+                                            <td><small class="text-muted">{{ basin.created_at|date:"Y-m-d H:i" }}</small></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="viewBasinData({{ basin.id }}, '{{ basin.name }}')" title="View Data">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-dark" onclick="deleteBasin({{ basin.id }}, '{{ basin.name }}', event)" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> No basins have been imported yet. 
+                                Go to the <strong>Upload File</strong> tab to upload and import data.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- API Tab -->
+        <div class="tab-pane fade" id="api-panel" role="tabpanel" aria-labelledby="api-tab">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="bi bi-code-slash"></i> API Documentation</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <h6><i class="bi bi-info-circle"></i> API Overview</h6>
+                                <p class="mb-0">RESTful API endpoints for accessing basin data and time series information. All endpoints return JSON data. Use the "Test" buttons to try each endpoint, or copy the URLs to use in your own applications.</p>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-6">
+                                    <h6><i class="bi bi-list-ul"></i> Available Endpoints</h6>
+                                    
+                                    <!-- API Endpoint 1 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>1. List All Basins</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/basins/</code></p>
+                                            <p class="small">Returns a list of all imported basins with their metadata.</p>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/', 'GET', null)">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 2 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>2. Get Basin Details</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/1/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/basins/{basin_id}/</code></p>
+                                            <p class="small">Returns detailed information about a specific basin including column mappings and statistics.</p>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Basin ID:</span>
+                                                <input type="number" class="form-control" id="basin-id-input" value="1" placeholder="1">
+                                            </div>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/' + document.getElementById('basin-id-input').value + '/', 'GET', null)">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 3 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>3. Get Basin Wells</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/1/wells/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/basins/{basin_id}/wells/</code></p>
+                                            <p class="small">Returns all wells in a basin with their measurement counts and coordinates.</p>
+                                            <p class="small"><strong>Query Parameters:</strong> <code>min_measurements</code> (optional, default: 1)</p>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Basin ID:</span>
+                                                <input type="number" class="form-control" id="wells-basin-id" value="1">
+                                                <span class="input-group-text">Min Measurements:</span>
+                                                <input type="number" class="form-control" id="min-measurements" value="10">
+                                            </div>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/' + document.getElementById('wells-basin-id').value + '/wells/', 'GET', {min_measurements: document.getElementById('min-measurements').value})">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 4 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>4. Get Well Time Series</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/1/wells/123/timeseries/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/basins/{basin_id}/wells/{well_id}/timeseries/</code></p>
+                                            <p class="small">Returns time series data for a specific well.</p>
+                                            <p class="small"><strong>Query Parameters:</strong> <code>start_date</code>, <code>end_date</code> (optional)</p>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Basin ID:</span>
+                                                <input type="number" class="form-control" id="ts-basin-id" value="1">
+                                                <span class="input-group-text">Well ID:</span>
+                                                <input type="text" class="form-control" id="ts-well-id" placeholder="382113113435401">
+                                            </div>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/' + document.getElementById('ts-basin-id').value + '/wells/' + document.getElementById('ts-well-id').value + '/timeseries/', 'GET', null)">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 5 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>5. Get Basin Statistics</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/1/statistics/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/basins/{basin_id}/statistics/</code></p>
+                                            <p class="small">Returns comprehensive statistics about a basin including well counts, measurement distributions, and date ranges.</p>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Basin ID:</span>
+                                                <input type="number" class="form-control" id="stats-basin-id" value="1">
+                                            </div>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/' + document.getElementById('stats-basin-id').value + '/statistics/', 'GET', null)">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 6 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>6. Query Basin Data</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/1/query/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>POST /api/basins/{basin_id}/query/</code></p>
+                                            <p class="small">Query basin data with filters. Supports filtering by date range, well IDs, and value ranges.</p>
+                                            <p class="small"><strong>Body:</strong> <code>{"well_ids": [1,2,3], "start_date": "2020-01-01", "end_date": "2023-12-31", "limit": 100}</code></p>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Basin ID:</span>
+                                                <input type="number" class="form-control" id="query-basin-id" value="1">
+                                            </div>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/' + document.getElementById('query-basin-id').value + '/query/', 'POST', {limit: 10})">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 7 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>7. List All Schemes</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/schemes/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/schemes/</code></p>
+                                            <p class="small">Returns all column mapping schemes with their column definitions.</p>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/schemes/', 'GET', null)">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h6><i class="bi bi-terminal"></i> API Response</h6>
+                                    <div id="api-result" class="border rounded p-3" style="min-height: 400px; max-height: 600px; overflow-y: auto; background-color: #f8f9fa;">
+                                        <p class="text-muted text-center">Click "Test" on any endpoint to see the response here.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// Upload form handling - redirects to column mapping, then back to settings
+$('#upload-form-settings').on('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const progressDiv = $('#upload-progress');
+    
+    progressDiv.show();
+    
+    // Store flag to return to settings after mapping
+    sessionStorage.setItem('returnToSettings', 'true');
+    
+    $.ajax({
+        url: '{% url "gwapp:upload_data" %}',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success && response.redirect_url) {
+                window.location.href = response.redirect_url;
+            } else {
+                alert('Upload failed: ' + (response.error || 'Unknown error'));
+                progressDiv.hide();
+                sessionStorage.removeItem('returnToSettings');
+            }
+        },
+        error: function(xhr) {
+            let errorMsg = 'Upload failed. Please try again.';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            alert(errorMsg);
+            progressDiv.hide();
+            sessionStorage.removeItem('returnToSettings');
+        }
+    });
+});
+
+function viewBasinData(basinId, basinName) {
+    alert('Viewing data for basin: ' + basinName + ' (ID: ' + basinId + ')\n\nThis feature will show the data table for this basin.');
+    // TODO: Implement data viewing
+}
+
+function deleteBasin(basinId, basinName) {
+    if (!confirm('Are you sure you want to delete basin "' + basinName + '"?\n\nThis will delete all data associated with this basin. This action cannot be undone.')) {
+        return;
+    }
+    
+    // Show loading state - find button by onclick attribute
+    let deleteBtn = null;
+    let originalHtml = '';
+    $('button[onclick*="deleteBasin(' + basinId + '"]').each(function() {
+        const onclickAttr = $(this).attr('onclick') || '';
+        if (onclickAttr.includes('deleteBasin(' + basinId + ',')) {
+            deleteBtn = this;
+            return false; // break
+        }
+    });
+    
+    if (deleteBtn) {
+        originalHtml = deleteBtn.innerHTML;
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Deleting...';
+    }
+    
+    // Get CSRF token
+    const csrfToken = getCSRFToken();
+    
+    // Make AJAX request
+    $.ajax({
+        url: '{% url "gwapp:delete_basin" %}',
+        method: 'POST',
+        data: {
+            'basin_id': basinId,
+            'csrfmiddlewaretoken': csrfToken
+        },
+        success: function(response) {
+            if (response.success) {
+                // Show success message
+                showSuccessAlert('Basin "' + basinName + '" deleted successfully');
+                
+                // Reload the basins list
+                setTimeout(function() {
+                    // Reload the page to refresh the basins list
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showErrorAlert('Error deleting basin: ' + (response.error || 'Unknown error'));
+                if (deleteBtn) {
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalHtml;
+                }
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error deleting basin:', {xhr, status, error});
+            let errorMsg = 'Unknown error';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            } else if (xhr.responseText) {
+                errorMsg = xhr.responseText.substring(0, 200);
+            }
+            showErrorAlert('Error deleting basin: ' + errorMsg);
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = originalHtml;
+        }
+    });
+}
+</script>
+
+<!-- Remove old sections below -->
+<div style="display: none;">
+    <div class="row">
+        <!-- Add Basins Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-plus-circle"></i> Add Basin Data
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Upload CSV files with well locations and measurement data.</p>
+                    
+                    <div class="mb-3">
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Required columns:</strong> well ID, latitude, longitude, date, water table elevation
+                        </div>
+                    </div>
+                    
+                    <form id="settings-csv-upload-form" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="settings_data_file" class="form-label fw-bold">Select CSV File</label>
+                            <div class="file-input-wrapper" style="border: 2px dashed #007bff; padding: 30px; border-radius: 8px; cursor: pointer; text-align: center; background: #f8f9ff; transition: all 0.3s ease;" onclick="document.getElementById('settings_data_file').click();">
+                                <input type="file" class="form-control" id="settings_data_file" name="data_file" accept=".csv" required style="display: none;">
+                                <div class="file-input-display">
+                                    <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #007bff;"></i>
+                                    <div style="margin-top: 15px;">
+                                        <strong>Click to choose CSV file</strong><br>
+                                        <small class="text-muted">or drag and drop here</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-secondary btn-lg">
+                                <i class="bi bi-upload"></i> Upload & Map Columns
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Upload Progress -->
+                    <div id="settings-upload-progress" class="mt-3" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">
+                                <i class="bi bi-hourglass-split"></i> Processing file...
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dashboard Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-graph-up"></i> Dashboard
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">View statistics and manage your groundwater data.</p>
+                    
+                    <div class="row text-center mb-4">
+                        <div class="col-6">
+                            <div class="stat-card p-3 border rounded">
+                                <div class="stat-number h3 text-primary mb-1">2</div>
+                                <div class="stat-label text-muted">Wells</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-card p-3 border rounded">
+                                <div class="stat-number h3 text-success mb-1">6</div>
+                                <div class="stat-label text-muted">Records</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-secondary" onclick="exportData()">
+                            <i class="bi bi-download"></i> Export Data
+                        </button>
+                        <button class="btn btn-outline-info" onclick="viewAnalytics()">
+                            <i class="bi bi-bar-chart"></i> View Analytics
+                        </button>
+                        <a href="/apps/gwapp/" class="btn btn-outline-secondary">
+                            <i class="bi bi-map"></i> View Map
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock-history"></i> Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-file-earmark-plus text-success me-2"></i>
+                                Sample data loaded
+                            </div>
+                            <small class="text-muted">Recently</small>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-geo-alt text-primary me-2"></i>
+                                2 wells added to Salt Lake Basin
+                            </div>
+                            <small class="text-muted">Today</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="bi bi-code-slash"></i> API Documentation</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <h6><i class="bi bi-info-circle"></i> API Overview</h6>
+                                <p class="mb-0">RESTful API endpoints for accessing basin data and time series information. All endpoints return JSON data. Use the "Test" buttons to try each endpoint, or copy the URLs to use in your own applications.</p>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-6">
+                                    <h6><i class="bi bi-list-ul"></i> Available Endpoints</h6>
+                                    
+                                    <!-- API Endpoint 1 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>1. List All Basins</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/basins/</code></p>
+                                            <p class="small">Returns a list of all imported basins with their metadata.</p>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/', 'GET', null)">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 2 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>2. Get Basin Details</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/1/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/basins/{basin_id}/</code></p>
+                                            <p class="small">Returns detailed information about a specific basin including column mappings and statistics.</p>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Basin ID:</span>
+                                                <input type="number" class="form-control" id="basin-id-input" value="1" placeholder="1">
+                                            </div>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/' + document.getElementById('basin-id-input').value + '/', 'GET', null)">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 3 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>3. Get Basin Wells</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/1/wells/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/basins/{basin_id}/wells/</code></p>
+                                            <p class="small">Returns all wells in a basin with their measurement counts and coordinates.</p>
+                                            <p class="small"><strong>Query Parameters:</strong> <code>min_measurements</code> (optional, default: 1)</p>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Basin ID:</span>
+                                                <input type="number" class="form-control" id="wells-basin-id" value="1">
+                                                <span class="input-group-text">Min Measurements:</span>
+                                                <input type="number" class="form-control" id="min-measurements" value="10">
+                                            </div>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/' + document.getElementById('wells-basin-id').value + '/wells/', 'GET', {min_measurements: document.getElementById('min-measurements').value})">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 4 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>4. Get Well Time Series</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/1/wells/123/timeseries/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/basins/{basin_id}/wells/{well_id}/timeseries/</code></p>
+                                            <p class="small">Returns time series data for a specific well.</p>
+                                            <p class="small"><strong>Query Parameters:</strong> <code>start_date</code>, <code>end_date</code> (optional)</p>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Basin ID:</span>
+                                                <input type="number" class="form-control" id="ts-basin-id" value="1">
+                                                <span class="input-group-text">Well ID:</span>
+                                                <input type="text" class="form-control" id="ts-well-id" placeholder="382113113435401">
+                                            </div>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/' + document.getElementById('ts-basin-id').value + '/wells/' + document.getElementById('ts-well-id').value + '/timeseries/', 'GET', null)">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 5 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>5. Get Basin Statistics</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/1/statistics/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/basins/{basin_id}/statistics/</code></p>
+                                            <p class="small">Returns comprehensive statistics about a basin including well counts, measurement distributions, and date ranges.</p>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Basin ID:</span>
+                                                <input type="number" class="form-control" id="stats-basin-id" value="1">
+                                            </div>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/' + document.getElementById('stats-basin-id').value + '/statistics/', 'GET', null)">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 6 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>6. Query Basin Data</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/basins/1/query/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>POST /api/basins/{basin_id}/query/</code></p>
+                                            <p class="small">Query basin data with filters. Supports filtering by date range, well IDs, and value ranges.</p>
+                                            <p class="small"><strong>Body:</strong> <code>{"well_ids": [1,2,3], "start_date": "2020-01-01", "end_date": "2023-12-31", "limit": 100}</code></p>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Basin ID:</span>
+                                                <input type="number" class="form-control" id="query-basin-id" value="1">
+                                            </div>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/basins/' + document.getElementById('query-basin-id').value + '/query/', 'POST', {limit: 10})">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Endpoint 7 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <strong>7. List All Schemes</strong>
+                                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyApiUrl('api/schemes/')">
+                                                <i class="bi bi-clipboard"></i> Copy URL
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><code>GET /api/schemes/</code></p>
+                                            <p class="small">Returns all column mapping schemes with their column definitions.</p>
+                                            <button class="btn btn-sm btn-secondary" onclick="testApiEndpoint('api/schemes/', 'GET', null)">
+                                                <i class="bi bi-play-fill"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h6><i class="bi bi-terminal"></i> API Response</h6>
+                                    <div id="api-result" class="border rounded p-3" style="min-height: 400px; max-height: 600px; overflow-y: auto; background-color: #f8f9fa;">
+                                        <p class="text-muted text-center">Click "Test" on any endpoint to see the response here.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// Upload form handling - redirects to column mapping, then back to settings
+$('#upload-form-settings').on('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const progressDiv = $('#upload-progress');
+    
+    progressDiv.show();
+    
+    // Store flag to return to settings after mapping
+    sessionStorage.setItem('returnToSettings', 'true');
+    
+    $.ajax({
+        url: '{% url "gwapp:upload_data" %}',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success && response.redirect_url) {
+                window.location.href = response.redirect_url;
+            } else {
+                alert('Upload failed: ' + (response.error || 'Unknown error'));
+                progressDiv.hide();
+                sessionStorage.removeItem('returnToSettings');
+            }
+        },
+        error: function(xhr) {
+            let errorMsg = 'Upload failed. Please try again.';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            alert(errorMsg);
+            progressDiv.hide();
+            sessionStorage.removeItem('returnToSettings');
+        }
+    });
+});
+
+function viewBasinData(basinId, basinName) {
+    alert('Viewing data for basin: ' + basinName + ' (ID: ' + basinId + ')\n\nThis feature will show the data table for this basin.');
+    // TODO: Implement data viewing
+}
+
+function deleteBasin(basinId, basinName) {
+    if (!confirm('Are you sure you want to delete basin "' + basinName + '"?\n\nThis will delete all data associated with this basin. This action cannot be undone.')) {
+        return;
+    }
+    
+    // Show loading state - find button by onclick attribute
+    let deleteBtn = null;
+    let originalHtml = '';
+    $('button[onclick*="deleteBasin(' + basinId + '"]').each(function() {
+        const onclickAttr = $(this).attr('onclick') || '';
+        if (onclickAttr.includes('deleteBasin(' + basinId + ',')) {
+            deleteBtn = this;
+            return false; // break
+        }
+    });
+    
+    if (deleteBtn) {
+        originalHtml = deleteBtn.innerHTML;
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Deleting...';
+    }
+    
+    // Get CSRF token
+    const csrfToken = getCSRFToken();
+    
+    // Make AJAX request
+    $.ajax({
+        url: '{% url "gwapp:delete_basin" %}',
+        method: 'POST',
+        data: {
+            'basin_id': basinId,
+            'csrfmiddlewaretoken': csrfToken
+        },
+        success: function(response) {
+            if (response.success) {
+                // Show success message
+                showSuccessAlert('Basin "' + basinName + '" deleted successfully');
+                
+                // Reload the basins list
+                setTimeout(function() {
+                    // Reload the page to refresh the basins list
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showErrorAlert('Error deleting basin: ' + (response.error || 'Unknown error'));
+                if (deleteBtn) {
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalHtml;
+                }
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error deleting basin:', {xhr, status, error});
+            let errorMsg = 'Unknown error';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            } else if (xhr.responseText) {
+                errorMsg = xhr.responseText.substring(0, 200);
+            }
+            showErrorAlert('Error deleting basin: ' + errorMsg);
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = originalHtml;
+        }
+    });
+}
+</script>
+
+<style>
+.file-input-wrapper:hover {
+    border-color: #0056b3 !important;
+    background-color: #e7f3ff !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+}
+
+.stat-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+}
+</style>
+
+<script>
+// Global variables for scheme management
+let columnSchemes = [];
+let currentScheme = null;
+
+$(document).ready(function() {
+    console.log('⚙️ Settings page loaded');
+    
+    // Load column schemes
+    loadColumnSchemes().then(() => {
+        if (columnSchemes.length > 0) {
+            selectScheme(0);
+        }
+    });
+    
+    // Handle scheme form submission
+    $('#scheme-form').on('submit', function(e) {
+        e.preventDefault();
+        saveCurrentScheme();
+    });
+    
+    // Handle file selection display for settings page
+    $('#settings_data_file').on('change', function() {
+        const file = this.files[0];
+        const wrapper = $('.file-input-wrapper .file-input-display');
+        
+        if (file) {
+            console.log('📁 File selected in settings:', file.name);
+            wrapper.html(`
+                <i class="bi bi-file-earmark-check" style="font-size: 3rem; color: #28a745;"></i>
+                <div style="margin-top: 15px;">
+                    <strong>${file.name}</strong><br>
+                    <small class="text-muted">${(file.size / 1024).toFixed(1)} KB</small>
+                </div>
+            `);
+        }
+    });
+    
+    // Handle file upload in settings
+    $('#settings-csv-upload-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('settings_data_file');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('Please select a CSV file');
+            return;
+        }
+        
+        console.log('📤 Uploading file from settings:', file.name);
+        
+        // Show progress
+        $('#settings-upload-progress').show();
+        
+        const formData = new FormData();
+        formData.append('data_file', file);
+        formData.append('csrfmiddlewaretoken', $('[name=csrfmiddlewaretoken]').val());
+        
+        $.ajax({
+            url: '/apps/gwapp/upload-data/',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(data) {
+                console.log('✅ Upload successful:', data);
+                $('#settings-upload-progress').hide();
+                
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('Upload failed: ' + (data.error || 'Unknown error'));
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Upload error:', error);
+                $('#settings-upload-progress').hide();
+                alert('Upload failed. Please try again.');
+            }
+        });
+    });
+});
+
+function exportData() {
+    console.log('📊 Exporting data...');
+    alert('Export functionality will be implemented');
+}
+
+function viewAnalytics() {
+    console.log('📈 Viewing analytics...');
+    alert('Analytics functionality will be implemented');
+}
+
+// Load column schemes from storage
+function loadColumnSchemes() {
+    console.log('📋 Loading column schemes...');
+    
+    return fetch('/apps/gwapp/get-column-mapping/')
+        .then(response => {
+            console.log('📥 Fetch response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('📋 Received schemes data:', data);
+            console.log('📊 Data structure:', {
+                success: data.success,
+                hasSchemes: !!data.schemes,
+                isArray: Array.isArray(data.schemes),
+                schemesLength: data.schemes ? data.schemes.length : 0
+            });
+            
+            if (data.success && data.schemes && Array.isArray(data.schemes)) {
+                columnSchemes = data.schemes;
+                console.log('✅ Loaded', columnSchemes.length, 'schemes');
+                columnSchemes.forEach((s, i) => {
+                    console.log(`   [${i}] ID: ${s.id}, Name: ${s.name}, Required: ${s.required_columns ? s.required_columns.length : 0}, Optional: ${s.optional_columns ? s.optional_columns.length : 0}`);
+                });
+            } else {
+                console.warn('⚠️ No schemes found or invalid response:', data);
+                if (!data.success) {
+                    console.error('❌ API returned success=false:', data.error);
+                }
+                // Don't create default scheme here - let the backend handle it
+                columnSchemes = data.schemes || [];
+            }
+            
+            updateSchemeSelector();
+            updateSchemesList();
+            
+            // Don't auto-select first scheme when reloading after save
+            return columnSchemes;
+        })
+        .catch(error => {
+            console.error('❌ Error loading column schemes:', error);
+            console.error('   Error details:', error.message, error.stack);
+            // Don't create fallback - just show empty state
+            columnSchemes = [];
+            updateSchemeSelector();
+            updateSchemesList();
+            return columnSchemes;
+        });
+}
+
+// Save column schemes to storage
+function saveColumnSchemes() {
+    console.log('💾 Saving column schemes...');
+    
+    const data = {
+        schemes: columnSchemes
+    };
+    
+    fetch('/apps/gwapp/save-column-mapping/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccessAlert('Column schemes saved successfully!');
+        } else {
+            showErrorAlert('Error saving column schemes: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error saving schemes:', error);
+        showErrorAlert('Error saving column schemes');
+    });
+}
+
+// Helper function to get CSRF token
+function getCSRFToken() {
+    // Try to get from form input
+    let token = $('[name=csrfmiddlewaretoken]').val();
+    if (token) return token;
+    
+    // Try to get from meta tag
+    const metaTag = document.querySelector('meta[name=csrf-token]');
+    if (metaTag) return metaTag.getAttribute('content');
+    
+    // Try to get from cookie
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function saveCurrentSchemeToDatabase() {
+    if (!currentScheme) {
+        console.error('❌ No current scheme to save');
+        return;
+    }
+    
+    console.log('💾 Saving current scheme to database...', currentScheme);
+    
+    const data = {
+        operation: currentScheme.id ? 'update' : 'create',
+        scheme: currentScheme
+    };
+    
+    if (currentScheme.id) {
+        data.scheme_id = currentScheme.id;
+    }
+    
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        console.error('❌ CSRF token not found');
+        showErrorAlert('CSRF token not found. Please refresh the page and try again.');
+        return;
+    }
+    
+    console.log('📤 Sending request:', data);
+    
+    fetch('/apps/gwapp/save-column-mapping/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        console.log('📥 Response status:', response.status, response.statusText);
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`HTTP ${response.status}: ${text}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('✅ Response data:', data);
+        console.log('📦 Response scheme:', data.scheme);
+        
+        if (data.success) {
+            showSuccessAlert(data.message || 'Scheme saved successfully!');
+            
+            // Reload all schemes from database to ensure we have the latest data
+            console.log('🔄 Reloading schemes from database...');
+            loadColumnSchemes().then((reloadedSchemes) => {
+                console.log('📋 Reloaded schemes:', reloadedSchemes);
+                console.log('📊 Current columnSchemes array:', columnSchemes);
+                console.log('🔍 Looking for scheme with ID:', data.scheme ? data.scheme.id : 'none');
+                
+                // After reloading, select the saved scheme
+                if (data.scheme && data.scheme.id) {
+                    const savedSchemeIndex = columnSchemes.findIndex(s => {
+                        const match = s.id === data.scheme.id || (s.id && s.id.toString() === data.scheme.id.toString());
+                        if (match) {
+                            console.log('✅ Found matching scheme at index:', savedSchemeIndex, s);
+                        }
+                        return match;
+                    });
+                    
+                    if (savedSchemeIndex >= 0) {
+                        selectScheme(savedSchemeIndex);
+                        console.log('✅ Selected saved scheme:', data.scheme.name);
+                    } else {
+                        console.error('❌ Saved scheme not found in reloaded list!');
+                        console.error('   Looking for ID:', data.scheme.id);
+                        console.error('   Available IDs:', columnSchemes.map(s => s.id));
+                        console.error('   Available names:', columnSchemes.map(s => s.name));
+                        // Still update the UI even if we can't find the exact match
+                        if (columnSchemes.length > 0) {
+                            updateSchemeSelector();
+                            updateSchemesList();
+                        }
+                    }
+                } else {
+                    console.warn('⚠️ No scheme ID in response, updating UI anyway');
+                    updateSchemeSelector();
+                    updateSchemesList();
+                }
+                
+                // Hide editor after successful save
+                const editor = document.getElementById('scheme-editor');
+                if (editor) editor.style.display = 'none';
+            }).catch(error => {
+                console.error('❌ Error reloading schemes:', error);
+                showErrorAlert('Scheme saved but failed to reload. Please refresh the page.');
+            });
+        } else {
+            const errorMsg = data.error || 'Unknown error occurred';
+            console.error('❌ Save failed:', errorMsg);
+            showErrorAlert('Error saving scheme: ' + errorMsg);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error saving scheme:', error);
+        showErrorAlert('Error saving scheme: ' + error.message);
+    });
+}
+
+function deleteSchemeFromDatabase(schemeId) {
+    console.log('🗑️ Deleting scheme from database...');
+    
+    const data = {
+        operation: 'delete',
+        scheme_id: schemeId
+    };
+    
+    fetch('/apps/gwapp/save-column-mapping/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccessAlert(data.message || 'Scheme deleted successfully!');
+            // Reload schemes from server
+            loadColumnSchemes().then(() => {
+                if (columnSchemes.length > 0) {
+                    selectScheme(0);
+                } else {
+                    currentScheme = null;
+                    const editor = document.getElementById('scheme-editor');
+                    if (editor) editor.style.display = 'none';
+                    const preview = document.getElementById('scheme-preview');
+                    if (preview) preview.style.display = 'none';
+                }
+            });
+        } else {
+            showErrorAlert('Error deleting scheme: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error deleting scheme:', error);
+        showErrorAlert('Error deleting scheme');
+    });
+}
+
+// Update scheme selector dropdown
+function updateSchemeSelector() {
+    const selector = document.getElementById('scheme-selector');
+    if (!selector) {
+        console.error('❌ Scheme selector not found');
+        return;
+    }
+    
+    console.log('🔄 Updating scheme selector with', columnSchemes.length, 'schemes');
+    selector.innerHTML = '';
+    
+    // Add default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select a scheme...';
+    selector.appendChild(defaultOption);
+    
+    if (columnSchemes.length === 0) {
+        console.warn('⚠️ No schemes available');
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No schemes available';
+        selector.appendChild(option);
+        updateSchemesList(); // Update list view too
+        return;
+    }
+    
+    columnSchemes.forEach((scheme, index) => {
+        const option = document.createElement('option');
+        // Use scheme ID if available, otherwise use index
+        option.value = scheme.id ? scheme.id : index;
+        option.textContent = scheme.name + (scheme.description ? ' - ' + scheme.description : '');
+        option.setAttribute('data-scheme-index', index);
+        selector.appendChild(option);
+        console.log('  ✓ Added scheme:', scheme.name, '(ID:', scheme.id || index + ')');
+    });
+    
+    console.log('✅ Scheme selector updated');
+    updateSchemesList(); // Also update the list view
+}
+
+// Update the schemes list display
+function updateSchemesList() {
+    const container = document.getElementById('schemes-list-container');
+    if (!container) return;
+    
+    if (columnSchemes.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No schemes available. Click "New Scheme" to create one.
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    columnSchemes.forEach((scheme, index) => {
+        const requiredCount = scheme.required_columns ? scheme.required_columns.length : 0;
+        const optionalCount = scheme.optional_columns ? scheme.optional_columns.length : 0;
+        const isSelected = currentScheme && ((currentScheme.id && currentScheme.id === scheme.id) || currentScheme === scheme);
+        
+        const listItem = document.createElement('div');
+        listItem.className = `list-group-item list-group-item-action ${isSelected ? 'active' : ''}`;
+        listItem.style.cursor = 'pointer';
+        listItem.onclick = () => {
+            selectScheme(index);
+            // Also update the dropdown
+            const selector = document.getElementById('scheme-selector');
+            if (selector) {
+                selector.value = scheme.id ? scheme.id : index;
+            }
+        };
+        
+        listItem.innerHTML = `
+            <div class="d-flex w-100 justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">
+                        ${isSelected ? '<i class="bi bi-check-circle-fill text-white me-2"></i>' : '<i class="bi bi-circle me-2"></i>'}
+                        <strong>${scheme.name || 'Unnamed Scheme'}</strong>
+                        ${isSelected ? '<span class="badge bg-light text-dark ms-2">Active</span>' : ''}
+                    </h6>
+                    ${scheme.description ? `<p class="mb-2 text-muted">${scheme.description}</p>` : ''}
+                    <div class="small">
+                        <span class="badge bg-dark me-1">${requiredCount} Required</span>
+                        <span class="badge bg-secondary">${optionalCount} Optional</span>
+                        ${scheme.id ? `<span class="badge bg-secondary ms-1">ID: ${scheme.id}</span>` : ''}
+                    </div>
+                </div>
+                <div class="btn-group btn-group-sm" role="group" onclick="event.stopPropagation()">
+                    <button class="btn btn-outline-secondary" onclick="selectScheme(${index}); editSelectedScheme();" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="selectScheme(${index}); copySelectedScheme();" title="Copy">
+                        <i class="bi bi-files"></i>
+                    </button>
+                    <button class="btn btn-outline-dark" onclick="selectScheme(${index}); deleteSelectedScheme();" title="Delete" ${columnSchemes.length <= 1 ? 'disabled' : ''}>
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(listItem);
+    });
+    
+    console.log('✅ Schemes list updated');
+}
+
+// Select and display a scheme
+function selectScheme(index) {
+    if (index < 0 || index >= columnSchemes.length) {
+        console.warn('⚠️ Invalid scheme index:', index);
+        return;
+    }
+    
+    currentScheme = columnSchemes[index];
+    const selector = document.getElementById('scheme-selector');
+    if (selector) {
+        // Use scheme ID if available, otherwise use index
+        const value = currentScheme.id ? currentScheme.id : index;
+        selector.value = value;
+        console.log('📌 Selected scheme:', currentScheme.name, '(ID:', currentScheme.id || index + ')');
+    }
+    
+    // Update the list view to highlight selected scheme
+    updateSchemesList();
+    
+    // Update scheme editor
+    const nameInput = document.getElementById('scheme-name');
+    const descInput = document.getElementById('scheme-description');
+    if (nameInput) nameInput.value = currentScheme.name;
+    if (descInput) descInput.value = currentScheme.description || '';
+    
+    // Update required columns
+    updateColumnList('required-columns-list', currentScheme.required_columns);
+    
+    // Update optional columns
+    updateColumnList('optional-columns-list', currentScheme.optional_columns);
+    
+    // Update preview
+    updateSchemePreview();
+    
+    // Enable/disable buttons
+    const editBtn = document.getElementById('edit-scheme-btn');
+    const deleteBtn = document.getElementById('delete-scheme-btn');
+    const copyBtn = document.getElementById('copy-scheme-btn');
+    
+    if (editBtn) editBtn.disabled = false;
+    if (deleteBtn) deleteBtn.disabled = columnSchemes.length <= 1;
+    if (copyBtn) copyBtn.disabled = false;
+}
+
+// Update column list display
+function updateColumnList(containerId, columns) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (!columns) columns = [];
+    
+    columns.forEach((column, index) => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+        
+        // Build column info with data type and constraints
+        let columnInfo = `<strong>${column.name}</strong>`;
+        if (column.data_type) {
+            columnInfo += ` <span class="badge bg-secondary ms-2">${column.data_type}</span>`;
+        }
+        if (column.is_primary_key) {
+            columnInfo += ` <span class="badge bg-secondary ms-1">PK</span>`;
+        }
+        if (column.is_unique) {
+            columnInfo += ` <span class="badge bg-secondary ms-1">UNIQUE</span>`;
+        }
+        if (column.description) {
+            columnInfo += `<br><small class="text-muted">${column.description}</small>`;
+        }
+        if (column.default_value) {
+            columnInfo += `<br><small class="text-info">Default: ${column.default_value}</small>`;
+        }
+        if (column.max_length && column.data_type === 'TEXT') {
+            columnInfo += `<br><small class="text-warning">Max Length: ${column.max_length}</small>`;
+        }
+        
+        item.innerHTML = `
+            <div>${columnInfo}</div>
+            <button class="btn btn-sm btn-outline-dark" onclick="removeColumn('${containerId}', ${index})">
+                <i class="bi bi-trash"></i>
+            </button>
+        `;
+        container.appendChild(item);
+    });
+}
+
+// Update scheme preview
+function updateSchemePreview() {
+    const preview = document.getElementById('scheme-preview');
+    if (!preview) return;
+    
+    if (!currentScheme) {
+        preview.innerHTML = '<p class="text-muted">No scheme selected</p>';
+        return;
+    }
+    
+    const requiredCols = currentScheme.required_columns || [];
+    const optionalCols = currentScheme.optional_columns || [];
+    
+    // Helper function to format column info
+    const formatColumn = (col) => {
+        let info = `<strong>${col.name}</strong>`;
+        if (col.data_type) {
+            info += ` <span class="badge bg-secondary">${col.data_type}</span>`;
+        }
+        if (col.is_primary_key) {
+            info += ` <span class="badge bg-secondary">PK</span>`;
+        }
+        if (col.is_unique) {
+            info += ` <span class="badge bg-secondary">UNIQUE</span>`;
+        }
+        if (col.description) {
+            info += `<br><small class="text-muted">${col.description}</small>`;
+        }
+        return info;
+    };
+    
+    preview.innerHTML = `
+        <h6>${currentScheme.name}</h6>
+        ${currentScheme.description ? `<p class="text-muted">${currentScheme.description}</p>` : ''}
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-danger">Required Columns (${requiredCols.length})</h6>
+                <div class="list-group list-group-flush">
+                    ${requiredCols.map(col => `
+                        <div class="list-group-item border-0 ps-0">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            ${formatColumn(col)}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-info">Optional Columns (${optionalCols.length})</h6>
+                <div class="list-group list-group-flush">
+                    ${optionalCols.map(col => `
+                        <div class="list-group-item border-0 ps-0">
+                            <i class="bi bi-dash-circle text-muted me-2"></i>
+                            ${formatColumn(col)}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Event handlers for scheme management
+function onSchemeSelected() {
+    const selector = document.getElementById('scheme-selector');
+    if (!selector) return;
+    
+    const selectedValue = selector.value;
+    if (!selectedValue) {
+        currentScheme = null;
+        return;
+    }
+    
+    // Try to find by ID first, then by index
+    let schemeIndex = -1;
+    if (selectedValue) {
+        // Check if it's an ID
+        schemeIndex = columnSchemes.findIndex(s => s.id && s.id.toString() === selectedValue.toString());
+        
+        // If not found by ID, try as index
+        if (schemeIndex === -1) {
+            const index = parseInt(selectedValue);
+            if (!isNaN(index) && index >= 0 && index < columnSchemes.length) {
+                schemeIndex = index;
+            }
+        }
+    }
+    
+    if (schemeIndex >= 0) {
+        selectScheme(schemeIndex);
+    } else {
+        console.warn('⚠️ Scheme not found for value:', selectedValue);
+    }
+}
+
+function createNewScheme() {
+    const newScheme = {
+        name: 'New Scheme',
+        description: '',
+        required_columns: [],
+        optional_columns: []
+    };
+    
+    columnSchemes.push(newScheme);
+    updateSchemeSelector();
+    selectScheme(columnSchemes.length - 1);
+    
+    // Focus on name input for editing
+    const nameInput = document.getElementById('scheme-name');
+    if (nameInput) {
+        nameInput.focus();
+        nameInput.select();
+    }
+    
+    // Show editor
+    const editor = document.getElementById('scheme-editor');
+    if (editor) editor.style.display = 'block';
+}
+
+function editSelectedScheme() {
+    // Toggle between view and edit mode
+    const editor = document.getElementById('scheme-editor');
+    if (!editor) return;
+    
+    const isHidden = editor.style.display === 'none' || !editor.style.display;
+    editor.style.display = isHidden ? 'block' : 'none';
+}
+
+function saveCurrentScheme() {
+    if (!currentScheme) {
+        showErrorAlert('No scheme selected');
+        return;
+    }
+    
+    // Update current scheme with form values
+    const nameInput = document.getElementById('scheme-name');
+    const descInput = document.getElementById('scheme-description');
+    
+    if (!nameInput || !nameInput.value || !nameInput.value.trim()) {
+        showErrorAlert('Scheme name is required');
+        nameInput.focus();
+        return;
+    }
+    
+    currentScheme.name = nameInput.value.trim();
+    if (descInput) currentScheme.description = descInput.value.trim();
+    
+    // Validate that we have at least one required column
+    if (!currentScheme.required_columns || currentScheme.required_columns.length === 0) {
+        showErrorAlert('At least one required column is needed');
+        return;
+    }
+    
+    // Save to database
+    saveCurrentSchemeToDatabase();
+    
+    // Don't hide editor yet - wait for successful save
+}
+
+function deleteSelectedScheme() {
+    if (!currentScheme || columnSchemes.length <= 1) {
+        showErrorAlert('Cannot delete the last scheme');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete "${currentScheme.name}"?\n\nThis will also delete the associated database table and all its data.`)) {
+        const schemeId = currentScheme.id;
+        if (schemeId) {
+            deleteSchemeFromDatabase(schemeId);
+        } else {
+            // If no ID, just remove from local array (shouldn't happen with DB integration)
+            const index = columnSchemes.indexOf(currentScheme);
+            columnSchemes.splice(index, 1);
+            updateSchemeSelector();
+            
+            if (columnSchemes.length > 0) {
+                selectScheme(0);
+            } else {
+                currentScheme = null;
+                updateSchemePreview();
+            }
+        }
+    }
+}
+
+function copySelectedScheme() {
+    if (!currentScheme) return;
+    
+    const copiedScheme = {
+        name: currentScheme.name + ' (Copy)',
+        description: currentScheme.description,
+        required_columns: [...(currentScheme.required_columns || [])],
+        optional_columns: [...(currentScheme.optional_columns || [])]
+    };
+    
+    columnSchemes.push(copiedScheme);
+    currentScheme = copiedScheme;
+    updateSchemeSelector();
+    selectScheme(columnSchemes.length - 1);
+    
+    // Show editor for the new scheme
+    const editor = document.getElementById('scheme-editor');
+    if (editor) editor.style.display = 'block';
+}
+
+function cancelSchemeEdit() {
+    // Hide the editor without saving
+    const editor = document.getElementById('scheme-editor');
+    if (editor) editor.style.display = 'none';
+    
+    // Reload the current scheme data to discard any unsaved changes
+    if (currentScheme && currentScheme.id) {
+        // Reload from the original data
+        const originalScheme = columnSchemes.find(s => s.id === currentScheme.id);
+        if (originalScheme) {
+            selectScheme(columnSchemes.indexOf(originalScheme));
+        }
+    }
+}
+
+function addRequiredColumn() {
+    showColumnForm('required');
+}
+
+function addOptionalColumn() {
+    showColumnForm('optional');
+}
+
+function showColumnForm(columnType) {
+    // Create modal form for adding columns
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'columnModal';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add ${columnType === 'required' ? 'Required' : 'Optional'} Column</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="columnForm">
+                        <div class="mb-3">
+                            <label for="columnName" class="form-label">Column Name *</label>
+                            <input type="text" class="form-control" id="columnName" required>
+                            <div class="form-text">Enter the column name (e.g., well_id, temperature)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="columnDescription" class="form-label">Description</label>
+                            <input type="text" class="form-control" id="columnDescription">
+                            <div class="form-text">Brief description of what this column contains</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="dataType" class="form-label">Data Type *</label>
+                            <select class="form-select" id="dataType" required>
+                                <option value="TEXT">Text (TEXT)</option>
+                                <option value="INTEGER">Integer (INTEGER)</option>
+                                <option value="REAL">Real Number (REAL)</option>
+                                <option value="DATE">Date (DATE)</option>
+                                <option value="DATETIME">Date & Time (DATETIME)</option>
+                                <option value="BOOLEAN">Boolean (BOOLEAN)</option>
+                            </select>
+                            <div class="form-text">Select the appropriate data type for this column</div>
+                        </div>
+                        
+                        <div class="mb-3" id="maxLengthGroup" style="display: none;">
+                            <label for="maxLength" class="form-label">Maximum Length</label>
+                            <input type="number" class="form-control" id="maxLength" min="1" max="1000">
+                            <div class="form-text">Maximum number of characters (for text fields)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="defaultValue" class="form-label">Default Value</label>
+                            <input type="text" class="form-control" id="defaultValue">
+                            <div class="form-text">Optional default value for this column</div>
+                        </div>
+                        
+                        <div class="form-check mb-3" id="primaryKeyGroup">
+                            <input class="form-check-input" type="checkbox" id="isPrimaryKey">
+                            <label class="form-check-label" for="isPrimaryKey">
+                                Primary Key
+                            </label>
+                            <div class="form-text">Check if this column should be the primary key</div>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="isUnique">
+                            <label class="form-check-label" for="isUnique">
+                                Unique Values
+                            </label>
+                            <div class="form-text">Check if all values in this column must be unique</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" onclick="saveColumn('${columnType}')">Add Column</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Show/hide max length field based on data type
+    document.getElementById('dataType').addEventListener('change', function() {
+        const maxLengthGroup = document.getElementById('maxLengthGroup');
+        if (this.value === 'TEXT') {
+            maxLengthGroup.style.display = 'block';
+        } else {
+            maxLengthGroup.style.display = 'none';
+        }
+    });
+    
+    // Hide primary key option for optional columns
+    if (columnType === 'optional') {
+        document.getElementById('primaryKeyGroup').style.display = 'none';
+    }
+    
+    // Show modal
+    const modalInstance = new bootstrap.Modal(modal);
+    modalInstance.show();
+    
+    // Clean up modal when closed
+    modal.addEventListener('hidden.bs.modal', function() {
+        document.body.removeChild(modal);
+    });
+}
+
+function saveColumn(columnType) {
+    const form = document.getElementById('columnForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const columnData = {
+        name: document.getElementById('columnName').value.trim(),
+        description: document.getElementById('columnDescription').value.trim(),
+        data_type: document.getElementById('dataType').value,
+        default_value: document.getElementById('defaultValue').value.trim(),
+        is_primary_key: document.getElementById('isPrimaryKey').checked,
+        is_unique: document.getElementById('isUnique').checked
+    };
+    
+    // Add max length for text fields
+    if (columnData.data_type === 'TEXT') {
+        const maxLength = document.getElementById('maxLength').value;
+        if (maxLength) {
+            columnData.max_length = parseInt(maxLength);
+        }
+    }
+    
+    // Validate column name doesn't already exist
+    if (!currentScheme.required_columns) currentScheme.required_columns = [];
+    if (!currentScheme.optional_columns) currentScheme.optional_columns = [];
+    
+    const allColumns = [...currentScheme.required_columns, ...currentScheme.optional_columns];
+    if (allColumns.some(col => col.name.toLowerCase() === columnData.name.toLowerCase())) {
+        alert('A column with this name already exists in the scheme.');
+        return;
+    }
+    
+    // Add column to appropriate list
+    if (columnType === 'required') {
+        currentScheme.required_columns.push(columnData);
+        updateColumnList('required-columns-list', currentScheme.required_columns);
+    } else {
+        currentScheme.optional_columns.push(columnData);
+        updateColumnList('optional-columns-list', currentScheme.optional_columns);
+    }
+    
+    updateSchemePreview();
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('columnModal'));
+    modal.hide();
+}
+
+
+
+function removeColumn(containerId, index) {
+    if (!currentScheme) return;
+    
+    if (containerId === 'required-columns-list') {
+        if (currentScheme.required_columns) {
+            currentScheme.required_columns.splice(index, 1);
+            updateColumnList('required-columns-list', currentScheme.required_columns);
+        }
+    } else {
+        if (currentScheme.optional_columns) {
+            currentScheme.optional_columns.splice(index, 1);
+            updateColumnList('optional-columns-list', currentScheme.optional_columns);
+        }
+    }
+    updateSchemePreview();
+}
+
+function showSuccessAlert(message) {
+    const alert = $(`
+        <div class="alert alert-success alert-dismissible fade show dynamic-alert" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('.card-body').first().prepend(alert);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        alert.fadeOut(() => alert.remove());
+    }, 5000);
+}
+
+function showErrorAlert(message) {
+    const alert = $(`
+        <div class="alert alert-danger alert-dismissible fade show dynamic-alert" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('.card-body').first().prepend(alert);
+    
+    // Auto-remove after 7 seconds
+    setTimeout(() => {
+        alert.fadeOut(() => alert.remove());
+    }, 7000);
+}
+
+// API Tab Functions
+function testApiEndpoint(endpoint, method, params) {
+    // Construct URL - ensure we have the correct base path
+    const baseUrl = window.location.origin + window.location.pathname.split('/settings')[0];
+    // Remove trailing slash from baseUrl if present, then add endpoint
+    let url = baseUrl.replace(/\/$/, '') + '/' + endpoint.replace(/^\//, '');
+    
+    const resultDiv = document.getElementById('api-result');
+    resultDiv.innerHTML = '<div class="text-center"><i class="bi bi-hourglass-split"></i> Loading...</div>';
+    
+    if (method === 'GET' && params) {
+        const queryString = new URLSearchParams(params).toString();
+        url += '?' + queryString;
+    }
+    
+    // Get CSRF token
+    const csrfToken = getCSRFToken();
+    
+    const options = {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    };
+    
+    // Add CSRF token if available
+    if (csrfToken) {
+        options.headers['X-CSRFToken'] = csrfToken;
+    }
+    
+    if (method === 'POST' && params) {
+        options.body = JSON.stringify(params);
+    }
+    
+    console.log('🌐 Testing API endpoint:', method, url);
+    
+    fetch(url, options)
+    .then(response => {
+        console.log('📥 Response received:', response.status, response.statusText);
+        console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
+        
+        // Check content type before parsing
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        
+        // Clone response to read it multiple times
+        const responseClone = response.clone();
+        
+        if (!response.ok) {
+            // Try to parse as JSON if it's JSON, otherwise get text
+            if (isJson) {
+                return response.json().then(err => {
+                    throw new Error(err.error || `HTTP ${response.status}: ${response.statusText}`);
+                });
+            } else {
+                return response.text().then(text => {
+                    console.error('❌ HTML Error Response:', text.substring(0, 500));
+                    // Try to extract error message from HTML
+                    const errorMatch = text.match(/<title>(.*?)<\/title>/i) || text.match(/<h1>(.*?)<\/h1>/i);
+                    const errorTitle = errorMatch ? errorMatch[1] : 'Server Error';
+                    throw new Error(`HTTP ${response.status}: ${errorTitle}\n\nURL: ${url}\n\nThis usually means:\n- The endpoint URL is incorrect\n- The server encountered an error\n- Check the server logs for details`);
+                });
+            }
+        }
+        
+        // Parse response based on content type
+        if (isJson) {
+            return response.json();
+        } else {
+            return response.text().then(text => {
+                console.error('❌ Non-JSON Response:', text.substring(0, 500));
+                throw new Error('Expected JSON response but received: ' + contentType + '\n\nURL: ' + url + '\n\nResponse preview: ' + text.substring(0, 300));
+            });
+        }
+    })
+    .then(data => {
+        console.log('✅ API Response:', data);
+        resultDiv.innerHTML = '<pre class="bg-light p-3 rounded" style="max-height: 500px; overflow-y: auto;">' + JSON.stringify(data, null, 2) + '</pre>';
+    })
+    .catch(error => {
+        console.error('❌ API Test Error:', error);
+        let errorMsg = error.message || 'Unknown error';
+        
+        // Format error message better
+        const formattedError = errorMsg.replace(/\n/g, '<br>');
+        
+        resultDiv.innerHTML = '<div class="alert alert-danger">' +
+            '<strong><i class="bi bi-exclamation-triangle"></i> Error:</strong><br>' +
+            '<div style="margin-top: 10px; white-space: pre-wrap; font-family: monospace; font-size: 0.9em;">' + 
+            formattedError + 
+            '</div>' +
+            '<div style="margin-top: 10px; font-size: 0.85em; color: #666;">' +
+            '<strong>URL tested:</strong> <code>' + url + '</code><br>' +
+            '<strong>Method:</strong> ' + method +
+            '</div>' +
+            '</div>';
+    });
+}
+
+function copyApiUrl(url) {
+    const baseUrl = window.location.origin + window.location.pathname.split('/settings')[0];
+    const fullUrl = baseUrl.replace(/\/$/, '') + '/' + url.replace(/^\//, '');
+    navigator.clipboard.writeText(fullUrl).then(() => {
+        alert('API URL copied to clipboard!\n\n' + fullUrl);
+    }).catch(() => {
+        alert('Failed to copy URL. Please copy manually:\n\n' + fullUrl);
+    });
+}
+</script>
+{% endblock %}

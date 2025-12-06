@@ -1,0 +1,10 @@
+well_id,well_name,latitude,longitude,well_depth,elevation,measurement_date,measurement_time,water_table_elevation,notes,quality_flag
+WELL_001,North Basin Well 1,40.7589,-111.8883,150,4226.5,2023-01-15,10:30,4185.2,Clear water,Good
+WELL_001,North Basin Well 1,40.7589,-111.8883,150,4226.5,2023-02-15,09:45,4183.8,Slight turbidity,Fair
+WELL_001,North Basin Well 1,40.7589,-111.8883,150,4226.5,2023-03-15,11:15,4182.1,Clear water,Good
+WELL_002,South Basin Well 2,40.7505,-111.8901,200,4234.2,2023-01-15,14:20,4190.5,Clear water,Good
+WELL_002,South Basin Well 2,40.7505,-111.8901,200,4234.2,2023-02-15,13:30,4188.9,Clear water,Good
+WELL_002,South Basin Well 2,40.7505,-111.8901,200,4234.2,2023-03-15,15:45,4187.3,Clear water,Good
+WELL_003,East Basin Well 3,40.7612,-111.8795,175,4231.8,2023-01-15,16:10,4192.1,Slight odor,Fair
+WELL_003,East Basin Well 3,40.7612,-111.8795,175,4231.8,2023-02-15,08:20,4190.8,Clear water,Good
+WELL_003,East Basin Well 3,40.7612,-111.8795,175,4231.8,2023-03-15,12:00,4189.2,Clear water,Good

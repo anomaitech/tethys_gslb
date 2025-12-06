@@ -209,4 +209,7 @@ When mapping columns, you configure:
 
 This application is part of the Tethys Platform ecosystem.
 
+## Support
+
+For issues or questions, please refer to the Tethys Platform documentation or contact your system administrator.
 

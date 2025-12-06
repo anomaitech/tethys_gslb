@@ -1,0 +1,637 @@
+{% extends "gwapp/base.html" %}
+{% load tethys %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block app_content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="bi bi-arrows-move"></i> {{ page_title }}</h4>
+                    <p class="mb-0">Select a schema and map the columns from your CSV file to the schema fields.</p>
+                </div>
+                <div class="card-body">
+                    <!-- Schema Selection -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0"><i class="bi bi-collection"></i> Select Schema</h5>
+                                </div>
+                                <div class="card-body">
+                                    <label for="schema-selector" class="form-label fw-bold">Choose a Column Schema:</label>
+                                    <select class="form-select form-select-lg" id="schema-selector" name="scheme_id" required>
+                                        <option value="">-- Select a schema --</option>
+                                        {% for scheme in schemes %}
+                                        <option value="{{ scheme.id }}" 
+                                                data-scheme-id="{{ scheme.id }}"
+                                                {% if selected_scheme and selected_scheme.id == scheme.id %}selected{% endif %}>
+                                            {{ scheme.name }}
+                                            {% if scheme.description %} - {{ scheme.description }}{% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if selected_scheme %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <strong>Selected:</strong> {{ selected_scheme.name }}
+                                            {% if selected_scheme.description %} - {{ selected_scheme.description }}{% endif %}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="column-mapping-form" method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="file_type" value="{{ file_type }}">
+                        <input type="hidden" name="scheme_id" id="form-scheme-id" value="{% if selected_scheme %}{{ selected_scheme.id }}{% endif %}">
+                        
+                        <!-- Schema Columns Mapping -->
+                        <div id="schema-mapping-section" style="{% if not selected_scheme %}display: none;{% endif %}">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5 class="text-danger">
+                                        <i class="bi bi-exclamation-circle"></i> Required Fields
+                                        <span class="badge bg-danger" id="required-count">{{ required_fields|length }}</span>
+                                    </h5>
+                                    <div id="required-fields-container">
+                                        {% for field in required_fields %}
+                                        <div class="mb-3 field-mapping-item" data-field-name="{{ field }}">
+                                            <label for="{{ field }}_mapping" class="form-label">
+                                                <strong>{{ field|title }}:</strong>
+                                                <span class="badge bg-info ms-2" id="{{ field }}_badge"></span>
+                                            </label>
+                                            <select class="form-select" id="{{ field }}_mapping" name="{{ field }}_mapping" required>
+                                                <option value="">Select column...</option>
+                                                {% for column in columns %}
+                                                <option value="{{ column }}" 
+                                                        {% for schema_field, csv_col in suggested_mappings_list %}{% if schema_field == field and csv_col == column %}selected{% endif %}{% endfor %}>
+                                                    {{ column }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h5 class="text-muted">
+                                        <i class="bi bi-dash-circle"></i> Optional Fields
+                                        <span class="badge bg-secondary" id="optional-count">{{ optional_fields|length }}</span>
+                                    </h5>
+                                    <div id="optional-fields-container">
+                                        {% for field in optional_fields %}
+                                        <div class="mb-3 field-mapping-item" data-field-name="{{ field }}">
+                                            <label for="{{ field }}_mapping" class="form-label">
+                                                {{ field|title }}:
+                                                <span class="badge bg-info ms-2" id="{{ field }}_badge"></span>
+                                            </label>
+                                            <select class="form-select" id="{{ field }}_mapping" name="{{ field }}_mapping">
+                                                <option value="">Select column (optional)...</option>
+                                                {% for column in columns %}
+                                                <option value="{{ column }}"
+                                                        {% for schema_field, csv_col in suggested_mappings_list %}{% if schema_field == field and csv_col == column %}selected{% endif %}{% endfor %}>
+                                                    {{ column }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Basin Configuration -->
+                        <div class="row mt-4" id="basin-config-section" style="{% if not selected_scheme %}display: none;{% endif %}">
+                            <div class="col-12">
+                                <div class="card border-warning">
+                                    <div class="card-header bg-warning text-dark">
+                                        <h5 class="mb-0"><i class="bi bi-geo-alt"></i> Basin Configuration</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label for="basin_name" class="form-label fw-bold">Basin Name <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="basin_name" name="basin_name" placeholder="e.g., Salt Lake Basin" required>
+                                                <div class="form-text">Enter a unique name for this basin</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="basin_description" class="form-label fw-bold">Basin Description</label>
+                                                <input type="text" class="form-control" id="basin_description" name="basin_description" placeholder="Optional description">
+                                            </div>
+                                        </div>
+                                        
+                                        <hr>
+                                        
+                                        <h6 class="fw-bold mb-3"><i class="bi bi-graph-up"></i> Plotting Column Selection</h6>
+                                        <p class="text-muted small">Select which columns will be used for plotting. These selections will be stored for future visualization.</p>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-3 mb-3">
+                                                <label for="plot_latitude" class="form-label fw-bold">Latitude Column <span class="text-danger">*</span></label>
+                                                <select class="form-select" id="plot_latitude" name="plot_latitude" required>
+                                                    <option value="">Select column...</option>
+                                                    {% for column in columns %}
+                                                    <option value="{{ column }}">{{ column }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            
+                                            <div class="col-md-3 mb-3">
+                                                <label for="plot_longitude" class="form-label fw-bold">Longitude Column <span class="text-danger">*</span></label>
+                                                <select class="form-select" id="plot_longitude" name="plot_longitude" required>
+                                                    <option value="">Select column...</option>
+                                                    {% for column in columns %}
+                                                    <option value="{{ column }}">{{ column }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            
+                                            <div class="col-md-3 mb-3">
+                                                <label for="plot_date" class="form-label fw-bold">Date/Time Column <span class="text-danger">*</span></label>
+                                                <select class="form-select" id="plot_date" name="plot_date" required>
+                                                    <option value="">Select column...</option>
+                                                    {% for column in columns %}
+                                                    <option value="{{ column }}">{{ column }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            
+                                            <div class="col-md-3 mb-3">
+                                                <label for="plot_value" class="form-label fw-bold">Value Column(s) <span class="text-danger">*</span></label>
+                                                <select class="form-select" id="plot_value" name="plot_value" multiple size="3" required>
+                                                    {% for column in columns %}
+                                                    <option value="{{ column }}">{{ column }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                <div class="form-text">Hold Ctrl/Cmd to select multiple values</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h5>CSV File Preview (First 5 rows)</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-sm">
+                                        <thead>
+                                            <tr>
+                                                {% for column in columns %}
+                                                <th>{{ column }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in sample_data %}
+                                            <tr>
+                                                {% for column in columns %}
+                                                <td>{% for col_name, col_value in row.items %}{% if col_name == column %}{{ col_value }}{% endif %}{% endfor %}</td>
+                                                {% endfor %}
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <button type="submit" name="confirm_mapping" class="btn btn-success me-2" id="submit-btn" {% if not selected_scheme %}disabled{% endif %}>
+                                    <i class="bi bi-check-circle"></i> Confirm Mapping & Import Data
+                                </button>
+                                <a href="{% url 'gwapp:upload_data' %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Back to Upload
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Parse JSON data from backend
+    let csvColumns = [];
+    try {
+        csvColumns = {% if columns_json %}{{ columns_json|safe }}{% else %}[]{% endif %};
+    } catch(e) {
+        console.error('Error parsing csvColumns:', e);
+        csvColumns = [];
+    }
+    
+    let currentScheme = null;
+    
+    // Parse schemes data
+    const schemesData = {};
+    let allSchemes = [];
+    try {
+        allSchemes = {% if schemes_json %}{{ schemes_json|safe }}{% else %}[]{% endif %};
+        if (Array.isArray(allSchemes)) {
+            allSchemes.forEach(function(scheme) {
+                schemesData[scheme.id] = scheme;
+            });
+        }
+    } catch(e) {
+        console.error('Error parsing schemes:', e);
+        allSchemes = [];
+    }
+    
+    // Store initial scheme data if available
+    let selectedSchemeJson = null;
+    try {
+        {% if selected_scheme_json %}
+        const selectedSchemeStr = {{ selected_scheme_json|safe }};
+        if (selectedSchemeStr && selectedSchemeStr !== null) {
+            selectedSchemeJson = selectedSchemeStr;
+            currentScheme = selectedSchemeJson;
+        }
+        {% endif %}
+    } catch(e) {
+        console.error('Error parsing selected scheme:', e);
+        selectedSchemeJson = null;
+    }
+    
+    // Handle schema selection change
+    $('#schema-selector').on('change', function() {
+        const schemeId = $(this).val();
+        
+        if (schemeId && schemesData[schemeId]) {
+            currentScheme = schemesData[schemeId];
+            $('#form-scheme-id').val(schemeId);
+            loadSchemeColumns(currentScheme);
+        } else {
+            $('#schema-mapping-section').hide();
+            $('#submit-btn').prop('disabled', true);
+            currentScheme = null;
+        }
+    });
+    
+    // Load schemes into selector if not already populated
+    if ($('#schema-selector option').length <= 1 && allSchemes.length > 0) {
+        $('#schema-selector').empty().append('<option value="">-- Select a schema --</option>');
+        allSchemes.forEach(function(scheme) {
+            const option = $('<option></option>')
+                .attr('value', scheme.id)
+                .attr('data-scheme-id', scheme.id)
+                .text(scheme.name + (scheme.description ? ' - ' + scheme.description : ''));
+            if (currentScheme && currentScheme.id === scheme.id) {
+                option.attr('selected', 'selected');
+            }
+            $('#schema-selector').append(option);
+        });
+    }
+    
+    function loadSchemeColumns(scheme) {
+        console.log('Loading scheme columns:', scheme);
+        
+        const requiredCols = scheme.required_columns || [];
+        const optionalCols = scheme.optional_columns || [];
+        
+        // Update required fields
+        const requiredContainer = $('#required-fields-container');
+        requiredContainer.empty();
+        
+        requiredCols.forEach(function(col) {
+            const fieldName = col.name;
+            const fieldHtml = `
+                <div class="mb-3 field-mapping-item" data-field-name="${fieldName}">
+                    <label for="${fieldName}_mapping" class="form-label">
+                        <strong>${fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong>
+                        <span class="badge bg-info ms-2">${col.data_type || 'TEXT'}</span>
+                        ${col.is_primary_key ? '<span class="badge bg-warning ms-1">PK</span>' : ''}
+                    </label>
+                    <select class="form-select" id="${fieldName}_mapping" name="${fieldName}_mapping" required>
+                        <option value="">Select column...</option>
+                        ${csvColumns.map(col => 
+                            `<option value="${col}">${col}</option>`
+                        ).join('')}
+                    </select>
+                    ${col.description ? `<small class="text-muted">${col.description}</small>` : ''}
+                </div>
+            `;
+            requiredContainer.append(fieldHtml);
+            
+            // Auto-suggest mapping
+            autoSuggestMapping(fieldName, col);
+        });
+        
+        // Update optional fields
+        const optionalContainer = $('#optional-fields-container');
+        optionalContainer.empty();
+        
+        optionalCols.forEach(function(col) {
+            const fieldName = col.name;
+            const fieldHtml = `
+                <div class="mb-3 field-mapping-item" data-field-name="${fieldName}">
+                    <label for="${fieldName}_mapping" class="form-label">
+                        ${fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:
+                        <span class="badge bg-info ms-2">${col.data_type || 'TEXT'}</span>
+                    </label>
+                    <select class="form-select" id="${fieldName}_mapping" name="${fieldName}_mapping">
+                        <option value="">Select column (optional)...</option>
+                        ${csvColumns.map(col => 
+                            `<option value="${col}">${col}</option>`
+                        ).join('')}
+                    </select>
+                    ${col.description ? `<small class="text-muted">${col.description}</small>` : ''}
+                </div>
+            `;
+            optionalContainer.append(fieldHtml);
+            
+            // Auto-suggest mapping
+            autoSuggestMapping(fieldName, col);
+        });
+        
+        // Update counts
+        $('#required-count').text(requiredCols.length);
+        $('#optional-count').text(optionalCols.length);
+        
+        // Show mapping section
+        $('#schema-mapping-section').show();
+        $('#basin-config-section').show();
+        $('#submit-btn').prop('disabled', false);
+    }
+    
+    function autoSuggestMapping(fieldName, colDef) {
+        const select = $(`#${fieldName}_mapping`);
+        if (!select.length) return;
+        
+        const fieldNameLower = fieldName.toLowerCase().replace(/_/g, '');
+        const fieldNameParts = fieldNameLower.split('_');
+        
+        // Try exact match first
+        let found = false;
+        csvColumns.forEach(function(csvCol) {
+            if (found) return;
+            const csvColLower = csvCol.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (csvColLower === fieldNameLower) {
+                select.val(csvCol);
+                found = true;
+            }
+        });
+        
+        // Try partial match
+        if (!found) {
+            csvColumns.forEach(function(csvCol) {
+                if (found) return;
+                const csvColLower = csvCol.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (csvColLower.includes(fieldNameLower) || fieldNameLower.includes(csvColLower)) {
+                    select.val(csvCol);
+                    found = true;
+                }
+            });
+        }
+        
+        // Try common variations
+        if (!found) {
+            const commonMappings = {
+                'wellid': ['wellid', 'id', 'well', 'wellname', 'site', 'station'],
+                'latitude': ['lat', 'y', 'north', 'latitude'],
+                'longitude': ['lon', 'lng', 'x', 'east', 'longitude', 'long'],
+                'date': ['date', 'datetime', 'timestamp', 'time', 'measured', 'sample'],
+                'watertableelevation': ['elevation', 'waterlevel', 'level', 'depth', 'wte', 'watertable', 'gwe'],
+                'wellname': ['name', 'wellname', 'well_name', 'site_name'],
+                'welldepth': ['depth', 'welldepth', 'totaldepth'],
+                'temperature': ['temp', 'temperature', 'watertemp'],
+                'ph': ['ph', 'phvalue'],
+                'conductivity': ['conductivity', 'ec', 'electricalconductivity']
+            };
+            
+            const suggestions = commonMappings[fieldNameLower] || [];
+            suggestions.forEach(function(suggestion) {
+                if (found) return;
+                csvColumns.forEach(function(csvCol) {
+                    if (found) return;
+                    const csvColLower = csvCol.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (csvColLower.includes(suggestion) || suggestion.includes(csvColLower)) {
+                        select.val(csvCol);
+                        found = true;
+                    }
+                });
+            });
+        }
+        
+        // Try matching by description if available
+        if (!found && colDef.description) {
+            const descLower = colDef.description.toLowerCase();
+            csvColumns.forEach(function(csvCol) {
+                if (found) return;
+                const csvColLower = csvCol.toLowerCase();
+                // Check if any word in description matches CSV column
+                const descWords = descLower.split(/\s+/);
+                descWords.forEach(function(word) {
+                    if (word.length > 3 && csvColLower.includes(word)) {
+                        select.val(csvCol);
+                        found = true;
+                    }
+                });
+            });
+        }
+    }
+    
+    // Form submission
+    $('#column-mapping-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        const schemeId = $('#form-scheme-id').val();
+        if (!schemeId) {
+            alert('Please select a schema first.');
+            return;
+        }
+        
+        // Validate required fields are mapped
+        let allRequiredMapped = true;
+        $('#required-fields-container .field-mapping-item').each(function() {
+            const select = $(this).find('select[required]');
+            if (!select.val()) {
+                allRequiredMapped = false;
+                select.addClass('is-invalid');
+            } else {
+                select.removeClass('is-invalid');
+            }
+        });
+        
+        if (!allRequiredMapped) {
+            alert('Please map all required fields before submitting.');
+            return;
+        }
+        
+        // Validate basin configuration
+        const basinName = $('#basin_name').val().trim();
+        if (!basinName) {
+            alert('Please enter a basin name.');
+            $('#basin_name').focus().addClass('is-invalid');
+            return;
+        }
+        $('#basin_name').removeClass('is-invalid');
+        
+        const plotLat = $('#plot_latitude').val();
+        const plotLon = $('#plot_longitude').val();
+        const plotDate = $('#plot_date').val();
+        const plotValues = $('#plot_value').val();
+        
+        if (!plotLat || !plotLon || !plotDate || !plotValues || plotValues.length === 0) {
+            alert('Please select all plotting columns (latitude, longitude, date, and at least one value column).');
+            if (!plotLat) $('#plot_latitude').addClass('is-invalid');
+            if (!plotLon) $('#plot_longitude').addClass('is-invalid');
+            if (!plotDate) $('#plot_date').addClass('is-invalid');
+            if (!plotValues || plotValues.length === 0) $('#plot_value').addClass('is-invalid');
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = $('#submit-btn');
+        const originalBtnText = submitBtn.html();
+        submitBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Processing...');
+        
+        // Log form data before submission
+        const formData = $(this).serialize();
+        console.log('📤 Submitting form data:', formData);
+        console.log('📋 Form fields:', {
+            scheme_id: $('#form-scheme-id').val(),
+            basin_name: $('#basin_name').val(),
+            plot_latitude: $('#plot_latitude').val(),
+            plot_longitude: $('#plot_longitude').val(),
+            plot_date: $('#plot_date').val(),
+            plot_value: $('#plot_value').val()
+        });
+        
+        // Submit form
+        $.ajax({
+            url: '{% url "gwapp:column_mapping" %}',
+            type: 'POST',
+            data: formData,
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                console.log('✅ Mapping response:', response);
+                if (response && response.success) {
+                    alert(response.message || 'Data imported successfully!');
+                    // Check if we should return to settings
+                    if (sessionStorage.getItem('returnToSettings') === 'true') {
+                        sessionStorage.removeItem('returnToSettings');
+                        window.location.href = '/apps/gwapp/settings/?tab=basins';
+                    } else {
+                        window.location.href = response.redirect_url || '/apps/gwapp/';
+                    }
+                } else {
+                    const errorMsg = (response && response.error) || 'Unknown error occurred';
+                    console.error('❌ Mapping failed:', errorMsg);
+                    alert('Mapping failed: ' + errorMsg);
+                    submitBtn.prop('disabled', false).html(originalBtnText);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ AJAX error:', status, error);
+                console.error('   Status:', xhr.status);
+                console.error('   Response type:', xhr.getResponseHeader('Content-Type'));
+                console.error('   Response preview:', xhr.responseText.substring(0, 500));
+                
+                let errorMsg = 'Mapping failed. Please try again.';
+                
+                // Check if response is HTML (error page)
+                const contentType = xhr.getResponseHeader('Content-Type') || '';
+                if (contentType.includes('text/html')) {
+                    errorMsg = 'Server returned an error page. Please check the server logs for details.';
+                    console.error('   Server returned HTML instead of JSON - this indicates a server error');
+                } else {
+                    try {
+                        if (xhr.responseJSON) {
+                            errorMsg = xhr.responseJSON.error || errorMsg;
+                        } else if (xhr.responseText) {
+                            // Try to parse as JSON
+                            const response = JSON.parse(xhr.responseText);
+                            errorMsg = response.error || errorMsg;
+                        }
+                    } catch (e) {
+                        console.error('   Could not parse error response:', e);
+                        errorMsg = `Server error (${xhr.status}): ${error}. Check server logs for details.`;
+                    }
+                }
+                
+                alert('Mapping failed: ' + errorMsg);
+                submitBtn.prop('disabled', false).html(originalBtnText);
+            }
+        });
+    });
+    
+    // If scheme is already selected, ensure it's loaded
+    if (currentScheme) {
+        loadSchemeColumns(currentScheme);
+        $('#schema-selector').val(currentScheme.id);
+    } else if (allSchemes.length > 0) {
+        // Auto-select first scheme if none selected
+        const firstScheme = allSchemes[0];
+        $('#schema-selector').val(firstScheme.id);
+        currentScheme = firstScheme;
+        $('#form-scheme-id').val(firstScheme.id);
+        loadSchemeColumns(firstScheme);
+    }
+    
+    // Show basin config section when scheme is selected
+    $('#schema-selector').on('change', function() {
+        const hasScheme = $(this).val() !== '';
+        $('#basin-config-section').toggle(hasScheme);
+    });
+    
+    // Auto-suggest plotting columns based on column names
+    function autoSuggestPlottingColumns() {
+        csvColumns.forEach(function(col) {
+            const colLower = col.toLowerCase();
+            
+            // Suggest latitude
+            if (colLower.includes('lat') && !$('#plot_latitude').val()) {
+                $('#plot_latitude').val(col);
+            }
+            
+            // Suggest longitude
+            if ((colLower.includes('lon') || colLower.includes('lng') || colLower.includes('long')) && !$('#plot_longitude').val()) {
+                $('#plot_longitude').val(col);
+            }
+            
+            // Suggest date
+            if ((colLower.includes('date') || colLower.includes('time') || colLower.includes('timestamp')) && !$('#plot_date').val()) {
+                $('#plot_date').val(col);
+            }
+            
+            // Suggest value columns (water level, elevation, etc.)
+            if ((colLower.includes('elevation') || colLower.includes('level') || colLower.includes('depth') || 
+                 colLower.includes('value') || colLower.includes('wte') || colLower.includes('water')) && 
+                $('#plot_value option:selected').length === 0) {
+                $('#plot_value option[value="' + col + '"]').prop('selected', true);
+            }
+        });
+    }
+    
+    // Run auto-suggest when columns are loaded
+    autoSuggestPlottingColumns();
+    
+    // Add visual feedback for mapped columns
+    $(document).on('change', '.field-mapping-item select', function() {
+        const $item = $(this).closest('.field-mapping-item');
+        if ($(this).val()) {
+            $item.addClass('border-success border rounded p-2');
+        } else {
+            $item.removeClass('border-success border rounded p-2');
+        }
+    });
+});
+</script>
+{% endblock %}
+

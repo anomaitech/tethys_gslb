@@ -1,0 +1,126 @@
+{% extends "gwapp/base.html" %}
+{% load tethys %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block app_content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="bi bi-upload"></i> Upload Combined Well & Measurement Data</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>Single CSV Upload:</strong> Upload one CSV file containing both well information and measurement data. Each row should represent a measurement with well location details.
+                    </div>
+                    
+                    <form id="data-upload-form" enctype="multipart/form-data" method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="data_file" class="form-label">Select CSV File:</label>
+                            <input type="file" class="form-control" id="data_file" name="data_file" accept=".csv" required>
+                            <div class="form-text">Upload a CSV with wells and measurements combined</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-upload"></i> Upload & Map to Database
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-10 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-info-circle"></i> CSV Format Requirements</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><strong>Required Columns:</strong></h6>
+                            <ul>
+                                <li><strong>Well ID:</strong> Unique identifier for each well</li>
+                                <li><strong>Latitude:</strong> Decimal degrees (e.g., 40.7589)</li>
+                                <li><strong>Longitude:</strong> Decimal degrees (e.g., -111.8883)</li>
+                                <li><strong>Date:</strong> Measurement date (YYYY-MM-DD)</li>
+                                <li><strong>Water Table Elevation:</strong> Elevation in meters</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><strong>Optional Columns:</strong></h6>
+                            <ul>
+                                <li><strong>Well Name:</strong> Descriptive name for the well</li>
+                                <li><strong>Well Depth:</strong> Total depth in meters</li>
+                                <li><strong>Ground Elevation:</strong> Surface elevation</li>
+                                <li><strong>Measurement Time:</strong> Time of measurement</li>
+                                <li><strong>Notes:</strong> Additional comments</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6><strong>Database Structure:</strong></h6>
+                        <p class="small text-muted">
+                            Your data will be mapped to two database tables:
+                        </p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Wells Table:</strong>
+                                <ul class="small">
+                                    <li>well_id, well_name, latitude, longitude</li>
+                                    <li>well_depth, elevation, created_date</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Measurements Table:</strong>
+                                <ul class="small">
+                                    <li>measurement_id, well_id, date, time</li>
+                                    <li>water_table_elevation, notes, quality_flag</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#data-upload-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        var formData = new FormData(this);
+        var submitBtn = $(this).find('button[type="submit"]');
+        
+        // Show loading state
+        submitBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Processing...');
+        
+        $.ajax({
+            url: '{% url "gwapp:upload_data" %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    window.location.href = response.redirect_url;
+                } else {
+                    alert('Upload failed: ' + (response.error || 'Unknown error'));
+                    submitBtn.prop('disabled', false).html('<i class="bi bi-upload"></i> Upload & Map to Database');
+                }
+            },
+            error: function() {
+                alert('Upload failed. Please try again.');
+                submitBtn.prop('disabled', false).html('<i class="bi bi-upload"></i> Upload & Map to Database');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

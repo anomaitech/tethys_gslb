@@ -1,0 +1,1102 @@
+{% extends tethys_app.package|add:"/base.html" %}
+{% load tethys %}
+
+{% block title %}{{ map_title }}{% endblock %}
+
+{% block app_content %}
+<!-- Hidden data container for basins JSON -->
+<script type="application/json" id="basins-data">{% if basins %}{{ basins|safe }}{% else %}[]{% endif %}</script>
+
+<div class="container-fluid" style="padding: 0;">
+    <!-- Map (shown when schema is clicked) -->
+    <div id="map-container" style="display: none; width: 100%; height: 100%; position: relative;">
+        <div id="map" style="width: 100%; height: calc(100vh - 150px); min-height: 600px;"></div>
+    </div>
+    
+            <!-- Time Series Panel (initially hidden) -->
+            <div id="timeseries-panel" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 2px solid #6c757d; max-height: 500px; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); overflow-y: auto;">
+                <div class="container-fluid" style="padding: 15px;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0"><i class="bi bi-graph-up"></i> Time Series Data</h6>
+                        <div>
+                            <button class="btn btn-sm btn-secondary me-2" onclick="exportTimeseriesToCSV()" id="export-csv-btn" style="display: none;">
+                                <i class="bi bi-download"></i> Export CSV
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="closeTimeseriesPanel()">
+                                <i class="bi bi-x"></i> Close
+                            </button>
+                        </div>
+                    </div>
+                    <div id="timeseries-content" style="margin-bottom: 10px;">
+                        <!-- Location info will be shown here -->
+                    </div>
+                    <div id="timeseries-chart-container" style="display: none; margin-top: 15px; height: 400px; position: relative;">
+                        <canvas id="timeseries-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+</div>
+
+<style>
+.gwapp-tabs {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.gwapp-tab-buttons {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 2px solid #6c757d;
+}
+
+.gwapp-tab-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: #666;
+    font-weight: 500;
+    padding: 12px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-right: 1px solid #e0e0e0;
+}
+
+.gwapp-tab-btn:last-child {
+    border-right: none;
+}
+
+.basin-item.active-basin {
+    background-color: #e9ecef !important;
+    border-left-color: #495057 !important;
+    border-left-width: 4px !important;
+}
+
+.schema-link.active-schema {
+    color: #495057 !important;
+    font-weight: 600;
+}
+
+.gwapp-tab-btn:hover {
+    background: rgba(25, 118, 210, 0.1);
+    color: #495057;
+}
+
+.gwapp-tab-btn.active {
+    background: #6c757d;
+    color: white;
+    font-weight: 600;
+}
+
+.gwapp-tab-panels {
+    position: relative;
+}
+
+.gwapp-tab-panel {
+    display: none;
+    padding: 15px;
+    min-height: 300px;
+}
+
+.gwapp-tab-panel.active {
+    display: block;
+}
+
+.upload-form-section {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+.form-title {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e3f2fd;
+}
+
+.upload-requirements {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.requirements-list {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 0.85em;
+}
+
+.requirements-list li {
+    margin-bottom: 4px;
+}
+
+.dashboard-section {
+    text-align: center;
+}
+
+.dashboard-stats {
+    display: flex;
+    justify-content: space-around;
+    margin: 20px 0;
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 15px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #495057;
+}
+
+.stat-label {
+    font-size: 0.8em;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dashboard-actions {
+    background: white;
+    border-radius: 6px;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #6c757d, #495057);
+    border: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #495057, #343a40);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.form-control:focus {
+    border-color: #6c757d;
+    box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+}
+
+.layer-controls {
+    padding: 10px 0;
+}
+</style>
+
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<!-- Chart.js for time series plots -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Global variables - initialize without Leaflet dependencies
+var map = null;
+var currentMarkers = null;
+var currentBasinId = null;
+var basinsData = [];
+
+// Parse basins data from script tag (safer than inline JSON)
+(function() {
+    try {
+        var basinsScript = document.getElementById('basins-data');
+        if (!basinsScript) {
+            console.log('ℹ️ No basins data script tag found');
+            basinsData = [];
+            return;
+        }
+        
+        // Get text content from script tag
+        var basinsJsonString = basinsScript.textContent || basinsScript.innerText;
+        if (!basinsJsonString) {
+            console.log('ℹ️ Basins script tag is empty');
+            basinsData = [];
+            return;
+        }
+        
+        basinsJsonString = basinsJsonString.trim();
+        console.log('📦 Raw basins JSON string length:', basinsJsonString.length);
+        console.log('📦 Raw basins JSON (first 500 chars):', basinsJsonString.substring(0, 500));
+        
+        if (basinsJsonString === '' || basinsJsonString === 'null' || basinsJsonString === '[]' || basinsJsonString === 'undefined') {
+            console.log('ℹ️ Empty or null basins data');
+            basinsData = [];
+            return;
+        }
+        
+        // Try to parse the JSON
+        try {
+            basinsData = JSON.parse(basinsJsonString);
+            if (!Array.isArray(basinsData)) {
+                console.warn('⚠️ Basins data is not an array, resetting to empty array');
+                console.warn('⚠️ Type of basinsData:', typeof basinsData);
+                console.warn('⚠️ Value:', basinsData);
+                basinsData = [];
+            } else {
+                console.log('✅ Parsed basins data:', basinsData.length, 'basins');
+                if (basinsData.length > 0) {
+                    console.log('✅ First basin:', basinsData[0]);
+                }
+            }
+        } catch (parseError) {
+            console.error('❌ JSON parse error:', parseError);
+            console.error('Problematic JSON string:', basinsJsonString.substring(0, 500));
+            basinsData = [];
+        }
+    } catch (e) {
+        console.error('❌ Error parsing basins data:', e);
+        console.error('Error details:', e.message);
+        if (e.stack) {
+            console.error('Stack:', e.stack);
+        }
+        basinsData = [];
+    }
+})();
+
+$(document).ready(function() {
+    console.log('🎯 Custom Map Template Loading...');
+    
+    // Load basins into navigation panel
+    console.log('📋 Loading basins into navigation...');
+    console.log('📊 Basins data:', basinsData);
+    
+    var basinsLoaded = false;
+    try {
+        basinsLoaded = loadBasinsIntoNavigation();
+        console.log('✅ Basins loaded into navigation');
+    } catch (e) {
+        console.error('❌ Error loading basins into navigation:', e);
+        console.error('Stack trace:', e.stack);
+    }
+    
+    // Initialize map
+    initializeMap();
+    
+    // Auto-load first basin after map is ready
+    if (basinsLoaded && basinsData && basinsData.length > 0) {
+        // Wait for map to be fully initialized before loading points
+        function waitForMapAndLoadFirstBasin() {
+            var attempts = 0;
+            var maxAttempts = 20; // Wait up to 4 seconds (20 * 200ms)
+            
+            function checkMap() {
+                attempts++;
+                if (map && typeof L !== 'undefined') {
+                    // Map is ready, load first basin
+                    var firstBasin = basinsData[0];
+                    if (firstBasin && firstBasin.id) {
+                        console.log('🚀 Auto-loading first basin:', firstBasin.name, 'ID:', firstBasin.id);
+                        // Small delay to ensure map container is fully rendered
+                        setTimeout(function() {
+                            loadBasinPoints(firstBasin.id);
+                        }, 500);
+                    }
+                } else if (attempts < maxAttempts) {
+                    setTimeout(checkMap, 200);
+                } else {
+                    console.warn('⚠️ Map not ready after', maxAttempts, 'attempts, trying to load first basin anyway');
+                    var firstBasin = basinsData[0];
+                    if (firstBasin && firstBasin.id) {
+                        loadBasinPoints(firstBasin.id);
+                    }
+                }
+            }
+            checkMap();
+        }
+        
+        // Start checking after a short delay to let map initialization begin
+        setTimeout(waitForMapAndLoadFirstBasin, 500);
+    }
+});
+
+function loadBasinsIntoNavigation() {
+    console.log('🔄 Starting loadBasinsIntoNavigation...');
+    
+    try {
+        // Only use navigation container
+        var navContainer = $('#basins-list-container');
+        
+        console.log('📦 Container found:', {
+            nav: navContainer.length > 0
+        });
+        
+        if (!navContainer || navContainer.length === 0) {
+            console.warn('⚠️ No basins container found, will retry...');
+            setTimeout(function() {
+                loadBasinsIntoNavigation();
+            }, 300);
+            return;
+        }
+        
+        console.log('📊 Basins data check:', {
+            isArray: Array.isArray(basinsData),
+            length: basinsData ? basinsData.length : 0,
+            type: typeof basinsData
+        });
+        
+        if (!basinsData || !Array.isArray(basinsData) || basinsData.length === 0) {
+            console.log('ℹ️ No basins data, showing empty message');
+            var emptyMsg = '<div class="alert alert-info"><i class="bi bi-info-circle"></i> No basins imported yet. Go to Settings to upload data.</div>';
+            navContainer.html(emptyMsg);
+            return;
+        }
+        
+        console.log('📝 Building HTML for', basinsData.length, 'basins...');
+        
+        // Build list HTML for navigation panel
+        var listHtml = '<div class="list-group" style="max-height: 400px; overflow-y: auto;">';
+        
+        basinsData.forEach(function(basin, index) {
+            if (!basin) {
+                console.warn('⚠️ Skipping null basin at index', index);
+                return;
+            }
+            
+            try {
+                var basinName = String(basin.name || 'Unnamed Basin').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                var schemeName = String(basin.scheme_name || 'Unknown').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                var basinId = basin.id || 0;
+                var recordCount = basin.record_count || 0;
+                
+                // List item for navigation panel
+                listHtml += '<div class="list-group-item basin-item" style="padding: 12px; margin-bottom: 8px; border-left: 3px solid #6c757d;" data-basin-id="' + basinId + '">';
+                listHtml += '<div class="d-flex flex-column">';
+                listHtml += '<strong style="font-size: 0.9em; margin-bottom: 5px;">' + basinName + '</strong>';
+                listHtml += '<span class="text-primary schema-link" style="cursor: pointer; text-decoration: underline; font-size: 0.85em;" data-basin-id="' + basinId + '" data-scheme-name="' + schemeName + '">';
+                listHtml += '<i class="bi bi-diagram-3"></i> ' + schemeName;
+                listHtml += '</span>';
+                listHtml += '<small class="text-muted mt-1"><span class="badge bg-secondary">' + recordCount + ' records</span></small>';
+                listHtml += '</div>';
+                listHtml += '</div>';
+            } catch (e) {
+                console.error('Error processing basin at index', index, ':', e);
+            }
+        });
+        
+        listHtml += '</div>';
+        
+        console.log('✅ HTML built, updating navigation container...');
+        
+        // Update navigation container with list format
+        navContainer.html(listHtml);
+        
+        // Add click handlers to schema links
+        $('.schema-link').off('click').on('click', function(e) {
+            e.preventDefault();
+            var basinId = $(this).data('basin-id');
+            var schemeName = $(this).data('scheme-name');
+            console.log('🔗 Schema clicked:', schemeName, 'Basin ID:', basinId);
+            if (basinId) {
+                loadBasinPoints(basinId);
+            }
+        });
+        
+        console.log('✅ Successfully loaded', basinsData.length, 'basins');
+        
+        // Return true if basins were loaded successfully
+        return basinsData.length > 0;
+    } catch (e) {
+        console.error('❌ Error loading basins into navigation:', e);
+        console.error('Stack trace:', e.stack);
+        
+        var errorMsg = '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> Error loading basins: ' + (e.message || 'Unknown error') + '</div>';
+        
+        if ($('#basins-list-container').length > 0) {
+            $('#basins-list-container').html(errorMsg);
+        }
+        if ($('#basins-display-container').length > 0) {
+            $('#basins-display-container').html(errorMsg);
+        }
+        
+        return false;
+    }
+}
+
+function initializeMap() {
+    console.log('🗺️ Initializing map...');
+    
+    // Wait for Leaflet to be available
+    function waitForLeaflet(callback, maxAttempts) {
+        maxAttempts = maxAttempts || 10;
+        var attempts = 0;
+        
+        function check() {
+            attempts++;
+            if (typeof L !== 'undefined') {
+                callback();
+            } else if (attempts < maxAttempts) {
+                setTimeout(check, 200);
+            } else {
+                console.error('❌ Leaflet library failed to load after', maxAttempts, 'attempts');
+            }
+        }
+        check();
+    }
+    
+    waitForLeaflet(function() {
+        try {
+            if (map) {
+                console.log('✅ Map already initialized');
+                return;
+            }
+            
+            var mapElement = document.getElementById('map');
+            if (!mapElement) {
+                console.error('❌ Map element not found');
+                return;
+            }
+            
+            // Initialize map with default view
+            map = L.map('map', {
+                zoomControl: true,
+                attributionControl: true
+            }).setView([40.75, -111.85], 10);
+            
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            // Initialize markers layer group
+            if (typeof L.layerGroup === 'function') {
+                currentMarkers = L.layerGroup().addTo(map);
+            }
+            
+            // Invalidate size after a short delay to ensure container is properly sized
+            setTimeout(function() {
+                if (map) {
+                    map.invalidateSize();
+                    console.log('✅ Map size invalidated after initialization');
+                }
+            }, 300);
+            
+            console.log('✅ Map initialized successfully');
+        } catch (e) {
+            console.error('❌ Error initializing map:', e);
+            console.error('Stack:', e.stack);
+        }
+    });
+}
+
+function highlightActiveBasin(basinId) {
+    // Remove active class from all basin items
+    $('.basin-item').removeClass('active-basin');
+    $('.schema-link').removeClass('active-schema');
+    
+    // Add active class to current basin
+    if (basinId) {
+        $('.basin-item[data-basin-id="' + basinId + '"]').addClass('active-basin');
+        $('.schema-link[data-basin-id="' + basinId + '"]').addClass('active-schema');
+    }
+}
+
+function loadBasinPoints(basinId) {
+    console.log('📍 Loading points for basin:', basinId);
+    currentBasinId = basinId;
+    
+    // Highlight the active basin in navigation
+    highlightActiveBasin(basinId);
+    
+    // Show the map container
+    $('#map-container').show();
+    
+    // Ensure map is initialized
+    if (!map) {
+        initializeMap();
+        // Wait a bit for map to initialize, then invalidate size and load points
+        setTimeout(function() {
+            if (map) {
+                map.invalidateSize();
+            }
+            loadBasinPoints(basinId);
+        }, 500);
+        return;
+    }
+    
+    // Invalidate map size to fix rendering issues
+    setTimeout(function() {
+        if (map) {
+            map.invalidateSize();
+            console.log('✅ Map size invalidated');
+        }
+    }, 100);
+    
+    // Clear existing markers
+    if (currentMarkers && typeof currentMarkers.clearLayers === 'function') {
+        currentMarkers.clearLayers();
+    }
+    
+    // Show loading indicator
+    var schemaLink = $('.schema-link[data-basin-id="' + basinId + '"]');
+    var originalHtml = schemaLink.html();
+    schemaLink.html('<i class="bi bi-hourglass-split"></i> Loading...');
+    
+    $.ajax({
+        url: '{% url "gwapp:get_basin_points" %}?basin_id=' + basinId,
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            console.log('📥 Response received:', response);
+            var schemeName = schemaLink.data('scheme-name');
+            schemaLink.html('<i class="bi bi-diagram-3"></i> ' + schemeName);
+            
+            if (!response.success) {
+                console.error('❌ API returned success: false', response.error);
+                alert('Error loading points: ' + (response.error || 'Unknown error'));
+                return;
+            }
+            
+            if (!response.points || !response.points.features) {
+                console.warn('⚠️ No points in response:', response);
+                alert('No points found for this basin');
+                return;
+            }
+            
+            console.log('✅ Loaded', response.points.features.length, 'unique points');
+            
+            // Ensure currentMarkers is initialized and added to map
+            if (!currentMarkers) {
+                if (typeof L.layerGroup === 'function') {
+                    currentMarkers = L.layerGroup();
+                    currentMarkers.addTo(map);
+                    console.log('✅ Created new markers layer group');
+                } else {
+                    console.error('❌ L.layerGroup is not available');
+                    return;
+                }
+            }
+            
+            // Clear existing markers first
+            currentMarkers.clearLayers();
+            console.log('🧹 Cleared existing markers');
+            
+                var bounds = [];
+                var markerCount = 0;
+                // No limit - show all points
+                
+                response.points.features.forEach(function(feature, index) {
+                
+                try {
+                    var coords = feature.geometry.coordinates;
+                    var lat = feature.properties.latitude;
+                    var lon = feature.properties.longitude;
+                    
+                    // Validate coordinates
+                    if (!coords || coords.length < 2) {
+                        console.warn('⚠️ Invalid coordinates for feature', index, ':', coords);
+                        return;
+                    }
+                    
+                    // GeoJSON uses [lon, lat], Leaflet uses [lat, lon]
+                    var latValue = coords[1] !== undefined ? coords[1] : lat;
+                    var lonValue = coords[0] !== undefined ? coords[0] : lon;
+                    
+                    // Fallback to properties if coordinates are invalid
+                    if (isNaN(latValue) && lat) latValue = lat;
+                    if (isNaN(lonValue) && lon) lonValue = lon;
+                    
+                    if (isNaN(latValue) || isNaN(lonValue)) {
+                        console.warn('⚠️ Invalid lat/lon for feature', index, ':', latValue, lonValue);
+                        return;
+                    }
+                    
+                    if (markerCount < 5) {
+                        console.log('📍 Adding marker', markerCount + 1, ':', latValue, lonValue);
+                    }
+                    
+                    // Create a simple circle marker (point)
+                    var marker = L.circleMarker([latValue, lonValue], {
+                        radius: 5,
+                        fillColor: '#6c757d',
+                        color: '#495057',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    });
+                    
+                    // Get well_id from feature properties if available
+                    var wellId = feature.properties.well_id || null;
+                    
+                    // Build popup content
+                    var popupContent = '<strong>Location</strong><br>';
+                    popupContent += 'Lat: ' + latValue.toFixed(6) + '<br>';
+                    popupContent += 'Lon: ' + lonValue.toFixed(6) + '<br>';
+                    if (wellId) {
+                        popupContent += 'Well ID: ' + wellId + '<br>';
+                    }
+                    // Pass well_id if available, otherwise use lat/lon
+                    if (wellId) {
+                        popupContent += '<button class="btn btn-sm btn-primary mt-2" onclick="loadTimeseries(' + basinId + ', ' + latValue + ', ' + lonValue + ', \'' + wellId + '\')">View Time Series</button>';
+                    } else {
+                        popupContent += '<button class="btn btn-sm btn-primary mt-2" onclick="loadTimeseries(' + basinId + ', ' + latValue + ', ' + lonValue + ')">View Time Series</button>';
+                    }
+                    
+                    marker.bindPopup(popupContent);
+                    
+                    // Add click handler to marker
+                    marker.on('click', function() {
+                        if (wellId) {
+                            loadTimeseries(basinId, latValue, lonValue, wellId);
+                        } else {
+                            loadTimeseries(basinId, latValue, lonValue);
+                        }
+                    });
+                    
+                    // Add hover effect
+                    marker.on('mouseover', function() {
+                        this.setStyle({
+                            radius: 7,
+                            fillOpacity: 0.9
+                        });
+                    });
+                    marker.on('mouseout', function() {
+                        this.setStyle({
+                            radius: 5,
+                            fillOpacity: 0.7
+                        });
+                    });
+                    
+                    // Add marker to layer group
+                    currentMarkers.addLayer(marker);
+                    bounds.push([latValue, lonValue]);
+                    markerCount++;
+                } catch (e) {
+                    console.error('❌ Error adding marker', index, ':', e);
+                    console.error('Feature data:', feature);
+                }
+            });
+            
+            console.log('✅ Added', markerCount, 'markers to map');
+            console.log('📊 Bounds array length:', bounds.length);
+            
+            // Fit map to bounds and invalidate size
+            if (bounds.length > 0) {
+                try {
+                    // Invalidate size first to ensure map container is properly sized
+                    map.invalidateSize();
+                    
+                    // Wait a moment for size recalculation, then fit bounds
+                    setTimeout(function() {
+                        if (map && bounds.length > 0) {
+                            var latlngBounds = L.latLngBounds(bounds);
+                            map.fitBounds(latlngBounds, { padding: [50, 50] });
+                            console.log('✅ Map bounds fitted to', bounds.length, 'points');
+                        }
+                    }, 300);
+                } catch (e) {
+                    console.error('❌ Could not fit bounds:', e);
+                }
+            } else {
+                console.warn('⚠️ No valid bounds to fit map');
+            }
+            
+            console.log('✅ All markers added successfully');
+        },
+        error: function(xhr) {
+            var schemeName = schemaLink.data('scheme-name');
+            schemaLink.html('<i class="bi bi-diagram-3"></i> ' + schemeName);
+            console.error('❌ Error loading basin points:', xhr);
+            alert('Error loading points: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        }
+    });
+}
+
+function loadTimeseries(basinId, latitude, longitude, wellId) {
+    console.log('📊 Loading timeseries for point:', latitude, longitude, 'Well ID:', wellId);
+    console.log('📊 Parameters: basinId=', basinId, 'lat=', latitude, 'lon=', longitude, 'wellId=', wellId);
+    
+    // Ensure timeseries panel exists
+    var panel = $('#timeseries-panel');
+    if (panel.length === 0) {
+        console.error('❌ Timeseries panel not found in DOM');
+        alert('Time series panel not found. Please refresh the page.');
+        return;
+    }
+    
+    // Ensure content div exists
+    var content = $('#timeseries-content');
+    if (content.length === 0) {
+        console.error('❌ Timeseries content div not found in DOM');
+        alert('Time series content area not found. Please refresh the page.');
+        return;
+    }
+    
+    content.html('<div class="text-center"><i class="bi bi-hourglass-split"></i> Loading time series data...</div>');
+    panel.slideDown(300);
+    
+    // Build URL - use Django URL reverse (same as get_basin_points)
+    var url = '{% url "gwapp:get_point_timeseries" %}?basin_id=' + encodeURIComponent(basinId) + '&latitude=' + encodeURIComponent(latitude) + '&longitude=' + encodeURIComponent(longitude);
+    if (wellId) {
+        url += '&well_id=' + encodeURIComponent(wellId);
+    }
+    console.log('📊 Requesting URL:', url);
+    
+    $.ajax({
+        url: url,
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            console.log('📥 Timeseries response:', response);
+            if (response.success && response.timeseries) {
+                console.log('✅ Received', response.timeseries.length, 'time series records');
+                displayTimeseries(response.timeseries, latitude, longitude);
+            } else {
+                console.warn('⚠️ No time series data in response');
+                content.html('<div class="alert alert-warning">No time series data found for this point.</div>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('❌ Error loading timeseries:', {xhr, status, error});
+            console.error('❌ Response text:', xhr.responseText);
+            content.html('<div class="alert alert-danger">Error loading time series data: ' + (xhr.responseJSON?.error || error || 'Unknown error') + '</div>');
+        }
+    });
+}
+
+var timeseriesChart = null;
+var currentTimeseriesData = null; // Store current timeseries for CSV export
+
+function displayTimeseries(timeseries, lat, lon) {
+    if (!timeseries || timeseries.length === 0) {
+        $('#timeseries-content').html('<div class="alert alert-info">No time series data available for this point.</div>');
+        $('#timeseries-chart-container').hide();
+        $('#export-csv-btn').hide();
+        currentTimeseriesData = null;
+        return;
+    }
+    
+    // Store data for CSV export
+    currentTimeseriesData = {
+        data: timeseries,
+        lat: lat,
+        lon: lon
+    };
+    
+    // Get value columns from first record
+    var valueColumns = Object.keys(timeseries[0]).filter(key => key !== 'date');
+    
+    // Sort timeseries by date
+    timeseries.sort(function(a, b) {
+        return new Date(a.date) - new Date(b.date);
+    });
+    
+    // Prepare data for chart
+    var dates = timeseries.map(function(record) {
+        return record.date;
+    });
+    
+    // Create datasets for each value column
+    var datasets = [];
+    var colors = [
+        { border: 'rgb(54, 162, 235)', background: 'rgba(54, 162, 235, 0.2)' },
+        { border: 'rgb(255, 99, 132)', background: 'rgba(255, 99, 132, 0.2)' },
+        { border: 'rgb(75, 192, 192)', background: 'rgba(75, 192, 192, 0.2)' },
+        { border: 'rgb(255, 205, 86)', background: 'rgba(255, 205, 86, 0.2)' },
+        { border: 'rgb(153, 102, 255)', background: 'rgba(153, 102, 255, 0.2)' }
+    ];
+    
+    valueColumns.forEach(function(col, index) {
+        var data = timeseries.map(function(record) {
+            var val = record[col];
+            return val !== null && val !== undefined ? parseFloat(val) : null;
+        });
+        
+        datasets.push({
+            label: col,
+            data: data,
+            borderColor: colors[index % colors.length].border,
+            backgroundColor: colors[index % colors.length].background,
+            tension: 0.1,
+            fill: false,
+            pointRadius: timeseries.length > 100 ? 0 : 2, // Hide points if too many data points
+            pointHoverRadius: 4
+        });
+    });
+    
+    // Destroy existing chart if it exists
+    if (timeseriesChart) {
+        timeseriesChart.destroy();
+    }
+    
+    // Create line chart
+    var ctx = document.getElementById('timeseries-chart');
+    if (ctx) {
+        // Clear any existing canvas
+        var parent = ctx.parentElement;
+        var newCanvas = document.createElement('canvas');
+        newCanvas.id = 'timeseries-chart';
+        parent.replaceChild(newCanvas, ctx);
+        ctx = newCanvas;
+        
+        timeseriesChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2.5,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Time Series Data - Lat ' + lat.toFixed(6) + ', Lon ' + lon.toFixed(6) + ' (' + timeseries.length + ' measurements)'
+                    },
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45,
+                            maxTicksLimit: 20 // Limit number of date labels for readability
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Value'
+                        },
+                        beginAtZero: false
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                elements: {
+                    line: {
+                        borderWidth: 2
+                    }
+                }
+            }
+        });
+        
+        // Show chart container and export button
+        $('#timeseries-chart-container').show();
+        $('#export-csv-btn').show();
+    }
+    
+    // Show location info only (no table)
+    var html = '<div class="mb-2"><strong>Location:</strong> Lat ' + lat.toFixed(6) + ', Lon ' + lon.toFixed(6) + ' | <strong>Measurements:</strong> ' + timeseries.length + '</div>';
+    $('#timeseries-content').html(html);
+}
+
+function exportTimeseriesToCSV() {
+    if (!currentTimeseriesData || !currentTimeseriesData.data || currentTimeseriesData.data.length === 0) {
+        alert('No time series data to export');
+        return;
+    }
+    
+    var timeseries = currentTimeseriesData.data;
+    var lat = currentTimeseriesData.lat;
+    var lon = currentTimeseriesData.lon;
+    
+    // Get all columns
+    var columns = ['date'];
+    var valueColumns = Object.keys(timeseries[0]).filter(key => key !== 'date');
+    columns = columns.concat(valueColumns);
+    
+    // Create CSV content
+    var csvContent = columns.join(',') + '\n';
+    
+    // Add data rows
+    timeseries.forEach(function(record) {
+        var row = [];
+        columns.forEach(function(col) {
+            var value = record[col];
+            // Handle null/undefined values
+            if (value === null || value === undefined) {
+                value = '';
+            } else {
+                // Escape commas and quotes in values
+                value = String(value).replace(/"/g, '""');
+                if (value.indexOf(',') !== -1 || value.indexOf('"') !== -1 || value.indexOf('\n') !== -1) {
+                    value = '"' + value + '"';
+                }
+            }
+            row.push(value);
+        });
+        csvContent += row.join(',') + '\n';
+    });
+    
+    // Create blob and download
+    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    var url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'timeseries_lat' + lat.toFixed(6) + '_lon' + lon.toFixed(6) + '.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function closeTimeseriesPanel() {
+    $('#timeseries-panel').slideUp();
+}
+    
+    // Handle CSV upload in navigation
+    $(document).on('submit', '#nav-csv-upload-form', function(e) {
+        e.preventDefault();
+        console.log('📤 Navigation CSV upload form submitted');
+        
+        var fileInput = $('#nav_data_file')[0];
+        if (!fileInput.files.length) {
+            alert('Please select a CSV file to upload.');
+            return;
+        }
+        
+        var formData = new FormData();
+        formData.append('data_file', fileInput.files[0]);
+        
+        // Get CSRF token
+        var csrfToken = $('[name=csrfmiddlewaretoken]').val() || 
+                       document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+                       getCookie('csrftoken');
+        if (csrfToken) {
+            formData.append('csrfmiddlewaretoken', csrfToken);
+        }
+        
+        var submitBtn = $(this).find('button[type="submit"]');
+        
+        // Show loading state
+        submitBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Processing...');
+        
+        $.ajax({
+            url: '{% url "gwapp:upload_data" %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    console.log('✅ Upload successful, redirecting to column mapping');
+                    window.location.href = response.redirect_url;
+                } else {
+                    alert('Upload failed: ' + (response.error || 'Unknown error'));
+                    submitBtn.prop('disabled', false).html('<i class="bi bi-upload"></i> Upload & Map Columns');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Upload failed:', error);
+                alert('Upload failed. Please try again.');
+                submitBtn.prop('disabled', false).html('<i class="bi bi-upload"></i> Upload & Map Columns');
+            }
+        });
+    });
+    
+    // Function to get CSRF cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    console.log('✅ Custom map template initialized successfully!');
+
+</script>
+
+<!-- Add Basins Modal -->
+<div class="modal fade" id="addBasinsModal" tabindex="-1" aria-labelledby="addBasinsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title" id="addBasinsModalLabel">
+                    <i class="bi bi-cloud-upload"></i> Upload Basin Data
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="alert alert-info d-flex align-items-center" role="alert">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <div>
+                            Upload CSV file with well locations and measurement data. Required columns include <strong>well ID</strong>, <strong>latitude</strong>, <strong>longitude</strong>, <strong>date</strong>, and <strong>water table elevation</strong>.
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="modal-csv-upload-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="modal_data_file" class="form-label fw-bold">Select CSV File</label>
+                        <div class="file-input-wrapper" style="border: 2px dashed #ccc; padding: 20px; border-radius: 8px; cursor: pointer; text-align: center; background: #f8f9fa;" onclick="document.getElementById('modal_data_file').click();">
+                            <input type="file" class="form-control" id="modal_data_file" name="data_file" accept=".csv" required style="display: none;">
+                            <div class="file-input-display">
+                                <i class="bi bi-cloud-upload" style="font-size: 2rem; color: #6c757d;"></i>
+                                <div style="margin-top: 10px;">
+                                    <strong>Click to choose CSV file</strong><br>
+                                    <small class="text-muted">or drag and drop here</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-text mt-2">
+                            <i class="bi bi-file-earmark-spreadsheet"></i> Choose a CSV file containing well location and measurement data
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-upload"></i> Upload & Map Columns
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Upload Progress -->
+                <div id="modal-upload-progress" class="mt-3" style="display: none;">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">
+                            <i class="bi bi-hourglass-split"></i> Processing file...
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

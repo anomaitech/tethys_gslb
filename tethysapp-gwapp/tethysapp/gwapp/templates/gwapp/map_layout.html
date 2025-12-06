@@ -1,0 +1,608 @@
+{% extends "tethys_layouts/map_layout/map_layout.html" %}
+{% load static %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+.gwapp-tabs {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.gwapp-tab-buttons {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 2px solid #1976d2;
+}
+
+.gwapp-tab-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: #666;
+    font-weight: 500;
+    padding: 12px 10px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-right: 1px solid #e0e0e0;
+}
+
+.gwapp-tab-btn:last-child {
+    border-right: none;
+}
+
+.gwapp-tab-btn:hover {
+    background: rgba(25, 118, 210, 0.1);
+    color: #1976d2;
+}
+
+.gwapp-tab-btn.active {
+    background: #1976d2;
+    color: white;
+    font-weight: 600;
+}
+
+.gwapp-tab-panels {
+    position: relative;
+}
+
+.gwapp-tab-panel {
+    display: none;
+    padding: 15px;
+    min-height: 300px;
+}
+
+.gwapp-tab-panel.active {
+    display: block;
+}
+
+.upload-form-section {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+.form-title {
+    color: #1976d2;
+    font-weight: 600;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e3f2fd;
+}
+
+.upload-requirements {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.requirements-list {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 0.85em;
+}
+
+.requirements-list li {
+    margin-bottom: 4px;
+}
+
+.dashboard-section {
+    text-align: center;
+}
+
+.dashboard-stats {
+    display: flex;
+    justify-content: space-around;
+    margin: 20px 0;
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 15px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #1976d2;
+}
+
+.stat-label {
+    font-size: 0.8em;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dashboard-actions {
+    background: white;
+    border-radius: 6px;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #1976d2, #1565c0);
+    border: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #1565c0, #0d47a1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.form-control:focus {
+    border-color: #1976d2;
+    box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+}
+</style>
+{% endblock %}
+
+{% block legend %}
+<!-- TEMPLATE DEBUG: Custom template loading -->
+<div style="background: lime; color: black; padding: 10px; text-align: center; font-weight: bold;">✅ CUSTOM TEMPLATE IS WORKING! TABS SHOULD BE BELOW:</div>
+
+<!-- Simple Tabbed Interface -->
+<div class="gwapp-tabs" style="background: white; border: 2px solid red; margin: 10px 0; display: block !important;">
+    <!-- Tab Buttons -->
+    <div class="gwapp-tab-buttons" style="display: flex !important; background: #f0f0f0; border: 1px solid blue;">
+        <button class="gwapp-tab-btn active" data-tab="basins" style="flex: 1; padding: 10px; background: #1976d2; color: white; border: 1px solid green;">
+            <i class="bi bi-layers"></i> Basins
+        </button>
+        <button class="gwapp-tab-btn" data-tab="add-basins" style="flex: 1; padding: 10px; background: #ccc; border: 1px solid green;">
+            <i class="bi bi-plus-circle"></i> Add Basins
+        </button>
+        <button class="gwapp-tab-btn" data-tab="dash" style="flex: 1; padding: 10px; background: #ccc; border: 1px solid green;">
+            <i class="bi bi-graph-up"></i> Dash
+        </button>
+    </div>
+
+    <!-- Tab Panels -->
+    <div class="gwapp-tab-panels">
+        <!-- Basins Panel -->
+        <div class="gwapp-tab-panel active" id="basins-panel">
+            {{ block.super }}
+        </div>
+
+        <!-- Add Basins Panel -->
+        <div class="gwapp-tab-panel" id="add-basins-panel">
+            <div class="upload-form-section">
+                <h6 class="form-title"><i class="bi bi-upload"></i> Upload Basin Data</h6>
+                <form id="csv-upload-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="data_file" class="form-label">Select CSV File</label>
+                        <input type="file" class="form-control" id="data_file" name="data_file" accept=".csv" required>
+                        <div class="form-text">Upload a CSV file containing well location and measurement data.</div>
+                    </div>
+                    
+                    <div class="upload-requirements mb-3">
+                        <h6>Required Columns:</h6>
+                        <ul class="requirements-list">
+                            <li><strong>well_id</strong> - Unique identifier for each well</li>
+                            <li><strong>latitude</strong> - Well latitude coordinates</li>
+                            <li><strong>longitude</strong> - Well longitude coordinates</li>
+                            <li><strong>measurement_date</strong> - Date of water table measurement</li>
+                            <li><strong>water_table_elevation</strong> - Water table elevation reading</li>
+                        </ul>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-upload"></i> Upload & Process Data
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard Panel -->
+        <div class="gwapp-tab-panel" id="dash-panel">
+            <div class="dashboard-section">
+                <h6><i class="bi bi-graph-up"></i> Dashboard</h6>
+                <div class="dashboard-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="wells-count">0</div>
+                        <div class="stat-label">Wells</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="measurements-count">0</div>
+                        <div class="stat-label">Measurements</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="basins-count">1</div>
+                        <div class="stat-label">Basins</div>
+                    </div>
+                </div>
+                <div class="dashboard-actions mt-3">
+                    <button class="btn btn-outline-primary btn-sm w-100 mb-2">
+                        <i class="bi bi-download"></i> Export Data
+                    </button>
+                    <button class="btn btn-outline-success btn-sm w-100">
+                        <i class="bi bi-graph-up"></i> Generate Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+console.log('🔥 MAP LAYOUT JAVASCRIPT IS LOADING!!!');
+$(document).ready(function() {
+    console.log('🎯 MAP LAYOUT: Initializing custom tabs...');
+    
+    // Force show tabs regardless of CSS
+    $('.gwapp-tabs').show().css('display', 'block');
+    $('.gwapp-tab-buttons').show().css('display', 'flex');
+    console.log('🔧 Forced tabs to show');
+    
+    // Handle tab button clicks
+    $('.gwapp-tab-btn').on('click', function() {
+        var targetTab = $(this).data('tab');
+        console.log('� Tab clicked:', targetTab);
+        
+        // Remove active class from all buttons and panels
+        $('.gwapp-tab-btn').removeClass('active');
+        $('.gwapp-tab-panel').removeClass('active');
+        
+        // Add active class to clicked button and corresponding panel
+        $(this).addClass('active');
+        $('#' + targetTab + '-panel').addClass('active');
+    });
+    
+    // Handle CSV upload form submission
+    $('#csv-upload-form').on('submit', function(e) {
+        e.preventDefault();
+        console.log('📤 CSV upload form submitted');
+        
+        var formData = new FormData(this);
+        var submitBtn = $(this).find('button[type="submit"]');
+        
+        // Show loading state
+        submitBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Processing...');
+        
+        $.ajax({
+            url: '{% url "gwapp:upload_data" %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    console.log('✅ Upload successful, redirecting to column mapping');
+                    window.location.href = response.redirect_url;
+                } else {
+                    alert('Upload failed: ' + (response.error || 'Unknown error'));
+                    submitBtn.prop('disabled', false).html('<i class="bi bi-upload"></i> Upload & Process Data');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Upload failed:', error);
+                alert('Upload failed. Please try again.');
+                submitBtn.prop('disabled', false).html('<i class="bi bi-upload"></i> Upload & Process Data');
+            }
+        });
+    });
+    
+    // Update dashboard stats when data changes
+    updateDashboardStats();
+    
+    // Wait for the map layout to be fully initialized
+    setTimeout(function() {
+        customizeLayerGroupMenu();
+    }, 1000);
+});
+
+function updateDashboardStats() {
+    // This function can be expanded to fetch real data from the server
+    console.log('📊 Updating dashboard stats');
+    
+    // For now, just update with static values
+    // In a real implementation, you'd make an AJAX call to get current stats
+    $('#wells-count').text('3');
+    $('#measurements-count').text('9');
+    $('#basins-count').text('1');
+}
+
+function openTimeSeriesMapper() {
+    console.log('🎯 Opening Time Series Mapper via tab interface');
+    // Switch to Add Basins tab using custom tab system
+    $('.gwapp-tab-btn').removeClass('active');
+    $('.gwapp-tab-panel').removeClass('active');
+    
+    $('[data-tab="add-basins"]').addClass('active');
+    $('#add-basins-panel').addClass('active');
+}
+
+// Upload button is now integrated into the legend panel instead of floating
+
+function customizeLayerGroupMenu() {
+    console.log('🔧 Setting up layer menu customization...');
+    
+    // Watch for any dropdown being opened
+    $(document).on('shown.bs.dropdown', function(e) {
+        console.log('📂 Bootstrap dropdown opened:', e.target);
+        addCustomMenuItems();
+    });
+    
+    // Watch for any click that might open a menu
+    $(document).on('click', 'button, .dropdown-toggle, [data-toggle], [data-bs-toggle]', function(e) {
+        console.log('🖱️ Button clicked:', $(this).attr('class'), $(this).text());
+        setTimeout(addCustomMenuItems, 100);
+    });
+    
+    // Also use mutation observer to catch dynamically created menus
+    if (typeof MutationObserver !== 'undefined') {
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList') {
+                    $(mutation.addedNodes).find('.dropdown-menu').each(function() {
+                        console.log('🔍 New dropdown menu detected:', this);
+                        addCustomMenuItems();
+                    });
+                }
+            });
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        console.log('👁️ MutationObserver set up');
+    }
+    
+    // Fallback: periodically check for open menus
+    setInterval(function() {
+        var openMenus = $('.dropdown-menu.show, .dropdown-menu:visible, .open');
+        if (openMenus.length > 0) {
+            console.log('⏰ Periodic check found open menus:', openMenus.length);
+            addCustomMenuItems();
+        }
+    }, 1000);
+}
+
+function addCustomMenuItems() {
+    console.log('🎯 Looking for dropdown menus to customize...');
+    
+    setTimeout(function() {
+        // Try multiple selectors to find dropdown menus
+        var selectors = [
+            '.dropdown-menu.show',
+            '.dropdown-menu:visible',
+            '.layer-options-dropdown.show',
+            '.layer-group-options .dropdown-menu',
+            '[aria-expanded="true"] + .dropdown-menu',
+            '.dropdown-menu',
+            '.popover .dropdown-menu',
+            '.layer-menu',
+            '[role="menu"]'
+        ];
+        
+        var foundMenus = [];
+        selectors.forEach(function(selector) {
+            var menus = $(selector);
+            if (menus.length > 0) {
+                foundMenus.push({selector: selector, count: menus.length});
+                console.log('✅ Found', menus.length, 'menus with selector:', selector);
+            }
+        });
+        
+        if (foundMenus.length === 0) {
+            console.log('❌ No dropdown menus found with any selector');
+            // Let's see what elements are actually visible
+            console.log('🔍 All visible elements with "dropdown" in class:');
+            $('[class*="dropdown"]:visible').each(function(i, el) {
+                console.log('  -', el.tagName, el.className, $(el).text().trim());
+            });
+            return;
+        }
+        
+        var dropdownMenu = $('.dropdown-menu.show, .dropdown-menu:visible, .layer-options-dropdown.show, .layer-group-options .dropdown-menu, [aria-expanded="true"] + .dropdown-menu');
+        console.log('📋 Processing', dropdownMenu.length, 'dropdown menus');
+        
+        if (dropdownMenu.length > 0) {
+            dropdownMenu.each(function(index) {
+                var menu = $(this);
+                console.log('📝 Menu', index, '- Items:', menu.find('li, .dropdown-item').length, 'HTML:', menu.html().substring(0, 100));
+                
+                if (!menu.find('.time-series-upload-btn').length) {
+                    console.log('➕ Adding custom menu item to menu', index);
+                    
+                    // Add separator and our custom menu item
+                    var separator = $('<li><hr class="dropdown-divider"></li>');
+                    var customMenuItem = $(`
+                        <li class="time-series-upload-btn">
+                            <a class="dropdown-item" href="#" style="background: #e3f2fd; color: #1976d2; font-weight: bold; border-radius: 4px; margin: 2px;">
+                                <i class="bi bi-graph-up"></i> Map Time Series Data
+                            </a>
+                        </li>
+                    `);
+                    
+                    menu.append(separator);
+                    menu.append(customMenuItem);
+                    
+                    console.log('✅ Custom menu item added successfully');
+                    
+                    // Handle click
+                    customMenuItem.find('a').on('click', function(e) {
+                        console.log('🎯 Custom menu item clicked!');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openTimeSeriesMapper();
+                        $('.dropdown-menu').removeClass('show');
+                    });
+                } else {
+                    console.log('⏭️ Menu', index, 'already has custom item, skipping');
+                }
+            });
+        } else {
+            console.log('❌ No matching dropdown menus found');
+        }
+    }, 100);
+}
+
+
+function openTimeSeriesMapper() {
+    // Create modal for time series mapping
+    var modal = $(`
+        <div class="modal fade" id="timeSeriesModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-graph-up"></i> Map Time Series Data - {{ basin_name }}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <strong>Time Series Mapping for {{ basin_name }}</strong><br>
+                            Upload or select time series data to visualize well measurements over time.
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Upload New Time Series Data</h6>
+                                <form id="modal-timeseries-form" enctype="multipart/form-data">
+                                    <div class="mb-3">
+                                        <label class="form-label">CSV File:</label>
+                                        <input type="file" class="form-control" name="timeseries_file" accept=".csv" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-upload"></i> Upload & Map
+                                    </button>
+                                </form>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Existing Time Series Data</h6>
+                                <div id="existing-timeseries">
+                                    <p class="text-muted">Loading existing data...</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <h6>Required CSV Columns:</h6>
+                            <ul class="small">
+                                <li><strong>well_id:</strong> Must match wells in {{ basin_name }}</li>
+                                <li><strong>date:</strong> Measurement date (YYYY-MM-DD format)</li>
+                                <li><strong>water_table_elevation:</strong> Elevation in meters</li>
+                                <li><strong>measurement_time:</strong> Time (optional)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <a href="{% url 'gwapp:upload_data' %}" class="btn btn-success">
+                            <i class="bi bi-plus-circle"></i> Go to Data Upload Page
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+    
+    $('body').append(modal);
+    
+    // Show modal
+    $('#timeSeriesModal').modal('show');
+    
+    // Handle form submission
+    $('#modal-timeseries-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        var formData = new FormData(this);
+        
+        $.ajax({
+            url: '{% url "gwapp:upload_data" %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    $('#timeSeriesModal').modal('hide');
+                    window.location.href = response.redirect_url + '&basin={{ basin_name }}';
+                } else {
+                    alert('Upload failed: ' + (response.error || 'Unknown error'));
+                }
+            },
+            error: function() {
+                alert('Upload failed. Please try again.');
+            }
+        });
+    });
+    
+    // Load existing time series data
+    loadExistingTimeSeries();
+    
+    // Clean up modal when closed
+    $('#timeSeriesModal').on('hidden.bs.modal', function() {
+        $(this).remove();
+    });
+}
+
+function loadExistingTimeSeries() {
+    // This would load existing time series data for the basin
+    setTimeout(function() {
+        $('#existing-timeseries').html(`
+            <div class="list-group">
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>Well Measurements 2023</span>
+                    <small class="text-muted">125 records</small>
+                </div>
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>Monthly Readings 2024</span>
+                    <small class="text-muted">48 records</small>
+                </div>
+                <div class="list-group-item text-center">
+                    <small class="text-muted">No time series data uploaded yet</small>
+                </div>
+            </div>
+        `);
+    }, 500);
+}
+
+function handleOriginalMenuAction(action) {
+    // Handle original layer menu actions
+    console.log('Original menu action:', action);
+    
+    // You can implement the original layer actions here
+    if (action.includes('Zoom')) {
+        // Implement zoom to layer
+        console.log('Zooming to layer');
+    } else if (action.includes('Hide') || action.includes('Show')) {
+        // Implement hide/show toggle
+        console.log('Toggle layer visibility');
+    } else if (action.includes('Opacity')) {
+        // Implement opacity adjustment
+        console.log('Adjust opacity');
+    }
+}
+
+// Add custom CSS for better styling
+var customCSS = `
+    <style>
+    .custom-layer-menu .menu-item:hover {
+        background-color: #f5f5f5;
+    }
+    .custom-layer-menu .time-series-btn:hover {
+        background-color: #bbdefb !important;
+    }
+    </style>
+`;
+$('head').append(customCSS);
+</script>
+{% endblock %}
