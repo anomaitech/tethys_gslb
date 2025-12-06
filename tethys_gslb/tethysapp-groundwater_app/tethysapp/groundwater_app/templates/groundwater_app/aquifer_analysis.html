@@ -1,0 +1,133 @@
+{% extends tethys_app.package|add:"/base.html" %}
+{% load tethys %}
+
+{% block header_buttons %}
+  <div class="header-button glyphicon-button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Back to Dashboard">
+    <a href="{% url 'groundwater_app:home' %}"><i class="bi bi-house-fill"></i></a>
+  </div>
+{% endblock %}
+
+{% block app_content %}
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-12">
+        <h1 class="mb-4">
+          <i class="bi bi-bar-chart-fill text-success"></i>
+          Aquifer Analysis
+        </h1>
+        <p class="lead">Analyze aquifer properties and performance</p>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">Water Level Trends</h5>
+          </div>
+          <div class="card-body">
+            <canvas id="waterLevelChart" width="400" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">Aquifer Properties</h5>
+          </div>
+          <div class="card-body">
+            <table class="table">
+              <tr>
+                <td>Transmissivity:</td>
+                <td><strong>150 m²/day</strong></td>
+              </tr>
+              <tr>
+                <td>Hydraulic Conductivity:</td>
+                <td><strong>15 m/day</strong></td>
+              </tr>
+              <tr>
+                <td>Storage Coefficient:</td>
+                <td><strong>0.002</strong></td>
+              </tr>
+              <tr>
+                <td>Porosity:</td>
+                <td><strong>25%</strong></td>
+              </tr>
+              <tr>
+                <td>Specific Yield:</td>
+                <td><strong>0.15</strong></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">Flow Direction Analysis</h5>
+          </div>
+          <div class="card-body">
+            <canvas id="flowDirectionChart" width="400" height="300"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Water Level Trend Chart
+    const ctx1 = document.getElementById('waterLevelChart').getContext('2d');
+    const waterLevelChart = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        datasets: [{
+          label: 'Average Water Level (m)',
+          data: [12.5, 12.8, 13.2, 13.5, 13.1, 12.9, 12.6, 12.3, 12.7, 13.0, 12.8, 12.5],
+          borderColor: 'rgb(75, 192, 192)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: false
+          }
+        }
+      }
+    });
+
+    // Flow Direction Chart (Polar)
+    const ctx2 = document.getElementById('flowDirectionChart').getContext('2d');
+    const flowDirectionChart = new Chart(ctx2, {
+      type: 'polarArea',
+      data: {
+        labels: ['North', 'Northeast', 'East', 'Southeast', 'South', 'Southwest', 'West', 'Northwest'],
+        datasets: [{
+          label: 'Flow Magnitude',
+          data: [15, 8, 12, 20, 25, 18, 10, 6],
+          backgroundColor: [
+            'rgba(255, 99, 132, 0.5)',
+            'rgba(54, 162, 235, 0.5)',
+            'rgba(255, 205, 86, 0.5)',
+            'rgba(75, 192, 192, 0.5)',
+            'rgba(153, 102, 255, 0.5)',
+            'rgba(255, 159, 64, 0.5)',
+            'rgba(199, 199, 199, 0.5)',
+            'rgba(83, 102, 255, 0.5)'
+          ]
+        }]
+      },
+      options: {
+        responsive: true
+      }
+    });
+  </script>
+{% endblock %}

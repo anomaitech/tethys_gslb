@@ -1,0 +1,138 @@
+{% extends tethys_app.package|add:"/base.html" %}
+{% load tethys %}
+
+{% block header_buttons %}
+  <div class="header-button glyphicon-button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Back to Dashboard">
+    <a href="{% url 'groundwater_app:home' %}"><i class="bi bi-house-fill"></i></a>
+  </div>
+{% endblock %}
+
+{% block app_content %}
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-12">
+        <h1 class="mb-4">
+          <i class="bi bi-geo-alt-fill text-info"></i>
+          Wells Management
+        </h1>
+        <p class="lead">Monitor and manage groundwater wells</p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Wells List</h5>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addWellModal">
+              <i class="bi bi-plus-circle"></i> Add Well
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Well ID</th>
+                    <th>Location</th>
+                    <th>Depth (m)</th>
+                    <th>Water Level (m)</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>W001</td>
+                    <td>40.7128°N, 74.0060°W</td>
+                    <td>45.2</td>
+                    <td>12.8</td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>
+                      <button class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>W002</td>
+                    <td>40.7589°N, 73.9851°W</td>
+                    <td>38.5</td>
+                    <td>15.2</td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>
+                      <button class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>W003</td>
+                    <td>40.6782°N, 73.9442°W</td>
+                    <td>52.1</td>
+                    <td>8.9</td>
+                    <td><span class="badge bg-warning">Maintenance</span></td>
+                    <td>
+                      <button class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">Well Statistics</h5>
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <div class="d-flex justify-content-between">
+                <span>Total Wells:</span>
+                <strong>24</strong>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="d-flex justify-content-between">
+                <span>Active Wells:</span>
+                <strong class="text-success">21</strong>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="d-flex justify-content-between">
+                <span>Maintenance:</span>
+                <strong class="text-warning">3</strong>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="d-flex justify-content-between">
+                <span>Average Depth:</span>
+                <strong>42.5 m</strong>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="d-flex justify-content-between">
+                <span>Average Water Level:</span>
+                <strong>12.3 m</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

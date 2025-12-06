@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tethysapp-gwapp"
-description =  "Its intended to serve as a platform for groundwater related projects"
-license = {text = "Open License"}
-keywords = [Groundwater experts, Groundwater, Remote sensing]
+description =  ""
+license = {text = "open Lisence"}
+keywords = []
 authors = [
     {name = "Henok Teklu", email = "anom37@byu.edu"},
 ]
@@ -14,7 +14,7 @@ classifiers = [
      "Environment :: Web Environment",
      "Framework :: Django",
      "Intended Audience :: Developers",
-     "License :: OSI Approved :: Open License",
+     "License :: OSI Approved :: open Lisence",
      "Operating System :: OS Independent",
      "Programming Language :: Python",
      "Programming Language :: Python :: 3",

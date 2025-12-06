@@ -8,119 +8,14 @@
 {% endblock %}
 
 {% block app_content %}
-  <div class="container-fluid">
-    <div class="row">
-      <div class="col-12">
-        <h1 class="text-center mb-4">
-          <i class="bi bi-droplet-half text-primary"></i>
-          Groundwater Management Platform
-        </h1>
-        <p class="lead text-center mb-5">
-          Comprehensive platform for groundwater monitoring, analysis, and modeling
-        </p>
-      </div>
-    </div>
-
-    <!-- Feature Cards -->
-    <div class="row mb-5">
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100 shadow-sm">
-          <div class="card-body text-center">
-            <i class="bi bi-geo-alt fs-1 text-primary mb-3"></i>
-            <h5 class="card-title">Well Management</h5>
-            <p class="card-text">Monitor and manage groundwater wells, track water levels, and maintain well records.</p>
-            {% gizmo wells_button %}
-          </div>
-        </div>
-      </div>
-
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100 shadow-sm">
-          <div class="card-body text-center">
-            <i class="bi bi-layers fs-1 text-info mb-3"></i>
-            <h5 class="card-title">Aquifer Analysis</h5>
-            <p class="card-text">Analyze aquifer properties, transmissivity, and hydraulic characteristics.</p>
-            {% gizmo aquifer_button %}
-          </div>
-        </div>
-      </div>
-
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100 shadow-sm">
-          <div class="card-body text-center">
-            <i class="bi bi-droplet fs-1 text-success mb-3"></i>
-            <h5 class="card-title">Water Quality</h5>
-            <p class="card-text">Monitor water quality parameters and track contamination plumes.</p>
-            {% gizmo quality_button %}
-          </div>
-        </div>
-      </div>
-
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100 shadow-sm">
-          <div class="card-body text-center">
-            <i class="bi bi-graph-up fs-1 text-warning mb-3"></i>
-            <h5 class="card-title">Groundwater Modeling</h5>
-            <p class="card-text">Run MODFLOW simulations and analyze groundwater flow patterns.</p>
-            {% gizmo modeling_button %}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Overview Map -->
-    <div class="row">
-      <div class="col-12">
-        <div class="card">
-          <div class="card-header">
-            <h5 class="mb-0">
-              <i class="bi bi-map"></i>
-              Project Area Overview
-            </h5>
-          </div>
-          <div class="card-body">
-            {% gizmo map_view %}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Statistics Dashboard -->
-    <div class="row mt-4">
-      <div class="col-md-3">
-        <div class="card bg-primary text-white">
-          <div class="card-body text-center">
-            <h3>42</h3>
-            <p>Active Wells</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card bg-success text-white">
-          <div class="card-body text-center">
-            <h3>8.5m</h3>
-            <p>Avg. Water Level</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card bg-warning text-white">
-          <div class="card-body text-center">
-            <h3>2.3</h3>
-            <p>Running Models</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card bg-info text-white">
-          <div class="card-body text-center">
-            <h3>95%</h3>
-            <p>Data Quality</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <h1>Welcome to your Tethys App!</h1>
+  <p>Take advantage of beautiful typography to organize the content of your app:</p>
+  <h1>Heading 1</h1>
+  <h2>Heading 2</h2>
+  <h3>Heading 3</h3>
+  <h4>Heading 4</h4>
+  <h5>Heading 5</h5>
+  <h6>Heading 6</h6>
 {% endblock %}
 
 {# Use the after_app_content block for modals #}

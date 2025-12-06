@@ -1,176 +1,133 @@
 from tethys_sdk.routing import controller
-from tethys_sdk.gizmos import Button, MapView, MVDraw, MVView, TextInput, SelectInput
+from tethys_sdk.layouts import MapLayout
+from tethys_sdk.gizmos import Button, TextInput, SelectInput
+from django.shortcuts import render
+from django.http import JsonResponse
+from django.contrib import messages
+import json
+import csv
+import io
+import os
+from pathlib import Path
+import pandas as pd
+from datetime import datetime
 from .app import App
 
 
-@controller
-def home(request):
-    """
-    Controller for the app home page - Groundwater Dashboard
-    """
-    # Navigation buttons for groundwater features
-    wells_button = Button(
-        display_text='Well Management',
-        name='wells-button',
-        icon='bi bi-geo-alt',
-        style='primary',
-        href=App.reverse('wells'),
-        attributes={
-            'data-bs-toggle': 'tooltip',
-            'data-bs-placement': 'top',
-            'title': 'Manage groundwater wells'
-        }
-    )
-
-    aquifer_button = Button(
-        display_text='Aquifer Analysis',
-        name='aquifer-button',
-        icon='bi bi-layers',
-        style='info',
-        href=App.reverse('aquifer_analysis'),
-        attributes={
-            'data-bs-toggle': 'tooltip',
-            'data-bs-placement': 'top',
-            'title': 'Analyze aquifer properties'
-        }
-    )
-
-    quality_button = Button(
-        display_text='Water Quality',
-        name='quality-button',
-        icon='bi bi-droplet',
-        style='success',
-        href=App.reverse('water_quality'),
-        attributes={
-            'data-bs-toggle': 'tooltip',
-            'data-bs-placement': 'top',
-            'title': 'Monitor water quality'
-        }
-    )
-
-    modeling_button = Button(
-        display_text='Groundwater Modeling',
-        name='modeling-button',
-        icon='bi bi-graph-up',
-        style='warning',
-        href=App.reverse('modeling'),
-        attributes={
-            'data-bs-toggle': 'tooltip',
-            'data-bs-placement': 'top',
-            'title': 'Run groundwater models'
-        }
-    )
-
-    # Simple map view for groundwater overview
-    map_view = MapView(
-        height='400px',
-        width='100%',
-        basemap={'Esri': ['World_Imagery']},
-        center=[-111.64, 40.25],  # Utah coordinates
-        zoom=10,
-        max_zoom=18,
-        min_zoom=2
-    )
-
-    context = {
-        'wells_button': wells_button,
-        'aquifer_button': aquifer_button,
-        'quality_button': quality_button,
-        'modeling_button': modeling_button,
-        'map_view': map_view,
-        'page_title': 'Groundwater APP Dashboard'
-    }
-
-    return App.render(request, 'home.html', context)
-
-
-@controller
-def wells(request):
-    """
-    Controller for well management page
-    """
-    # Well location input form
-    well_name_input = TextInput(
-        display_text='Well Name',
-        name='well_name',
-        placeholder='Enter well name...'
-    )
-
-    well_depth_input = TextInput(
-        display_text='Well Depth (m)',
-        name='well_depth',
-        placeholder='Enter well depth in meters...'
-    )
-
-    well_type_select = SelectInput(
-        display_text='Well Type',
-        name='well_type',
-        options=[
-            ('monitoring', 'Monitoring Well'),
-            ('production', 'Production Well'),
-            ('injection', 'Injection Well'),
-            ('observation', 'Observation Well')
+@controller(name="home", app_workspace=True)
+class GWAppMapLayout(MapLayout):
+    app = App
+    base_template = f'{App.package}/base.html'
+    map_title = 'Groundwater Wells Map'
+    map_subtitle = 'Interactive Well Data Visualization'
+    
+    def compose_layers(self, request, map_view, app_workspace, *args, **kwargs):
+        """
+        Add well layers to the MapLayout.
+        """
+        # Load wells data from uploaded files or use sample data
+        wells_geojson = self.load_wells_data(app_workspace)
+        if not wells_geojson:
+            # Sample wells data if no uploaded data
+            wells_geojson = {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [-111.9, 40.7]  # Sample coordinates (longitude, latitude)
+                        },
+                        "properties": {
+                            "well_id": "WELL_001",
+                            "name": "Sample Well 1",
+                            "depth": 150
+                        }
+                    },
+                    {
+                        "type": "Feature", 
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [-111.8, 40.8]
+                        },
+                        "properties": {
+                            "well_id": "WELL_002", 
+                            "name": "Sample Well 2",
+                            "depth": 200
+                        }
+                    }
+                ]
+            }
+        
+        wells_layer = self.build_geojson_layer(
+            geojson=wells_geojson,
+            layer_name='wells',
+            layer_title='Groundwater Wells',
+            layer_variable='wells',
+            visible=True,
+            selectable=True,
+            plottable=True,
+        )
+        
+        layer_groups = [
+            self.build_layer_group(
+                id='groundwater-data',
+                display_name='Groundwater Data',
+                layer_control='checkbox',
+                layers=[wells_layer]
+            )
         ]
-    )
+        
+        return layer_groups
 
-    # Map for well locations
-    wells_map = MapView(
-        height='500px',
-        width='100%',
-        basemap={'OpenStreetMap': ['OpenStreetMap']},
-        center=[-111.64, 40.25],
-        zoom=12,
-        max_zoom=18,
-        min_zoom=2
-    )
+    def load_wells_data(self, app_workspace):
+        """
+        Load wells data from uploaded files.
+        """
+        try:
+            wells_file = Path(app_workspace.path) / 'wells.json'
+            if wells_file.exists():
+                with open(wells_file, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"Error loading wells data: {e}")
+        return None
 
-    add_well_button = Button(
-        display_text='Add Well',
-        name='add-well',
-        icon='bi bi-plus-circle',
-        style='success'
-    )
-
-    context = {
-        'well_name_input': well_name_input,
-        'well_depth_input': well_depth_input,
-        'well_type_select': well_type_select,
-        'wells_map': wells_map,
-        'add_well_button': add_well_button,
-        'page_title': 'Well Management'
-    }
-
-    return App.render(request, 'wells.html', context)
-
-
-@controller
-def aquifer_analysis(request):
-    """
-    Controller for aquifer analysis page
-    """
-    context = {
-        'page_title': 'Aquifer Analysis'
-    }
-    return App.render(request, 'aquifer_analysis.html', context)
+    @classmethod
+    def get_vector_style_map(cls):
+        return {
+            'Point': {'ol.style.Style': {
+                'image': {'ol.style.Circle': {
+                    'radius': 8,
+                    'fill': {'ol.style.Fill': {
+                        'color': 'blue',
+                    }},
+                    'stroke': {'ol.style.Stroke': {
+                        'color': 'white',
+                        'width': 2
+                    }}
+                }}
+            }}
+        }
 
 
 @controller
-def water_quality(request):
+def upload_wells(request):
     """
-    Controller for water quality monitoring page
+    Controller for uploading well data CSV.
     """
     context = {
-        'page_title': 'Water Quality Monitoring'
+        'page_title': 'Upload Well Data'
     }
-    return App.render(request, 'water_quality.html', context)
+    return App.render(request, 'upload_wells.html', context)
 
 
 @controller
-def modeling(request):
+def upload_measurements(request):
     """
-    Controller for groundwater modeling page
+    Controller for uploading well measurements CSV.
     """
     context = {
-        'page_title': 'Groundwater Modeling'
+        'page_title': 'Upload Measurements'
     }
-    return App.render(request, 'modeling.html', context)
+    return App.render(request, 'upload_measurements.html', context)

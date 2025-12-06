@@ -1,0 +1,146 @@
+{% extends tethys_app.package|add:"/base.html" %}
+{% load tethys %}
+
+{% block header_buttons %}
+  <div class="header-button glyphicon-button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Help">
+    <a data-bs-toggle="modal" data-bs-target="#help-modal"><i class="bi bi-question-circle"></i></a>
+  </div>
+{% endblock %}
+
+{% block app_content %}
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-12">
+        <h1 class="mb-4">
+          <i class="bi bi-droplet-fill text-primary"></i>
+          Groundwater Management Dashboard
+        </h1>
+        <p class="lead">Comprehensive tools for groundwater analysis and management</p>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body text-center">
+            <div class="mb-3">
+              <i class="bi bi-geo-alt-fill text-info" style="font-size: 3rem;"></i>
+            </div>
+            <h5 class="card-title">Wells Management</h5>
+            <p class="card-text">Monitor and manage groundwater wells</p>
+            <a href="{% url 'groundwater_app:wells' %}" class="btn btn-info">
+              <i class="bi bi-arrow-right"></i> Manage Wells
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body text-center">
+            <div class="mb-3">
+              <i class="bi bi-bar-chart-fill text-success" style="font-size: 3rem;"></i>
+            </div>
+            <h5 class="card-title">Aquifer Analysis</h5>
+            <p class="card-text">Analyze aquifer properties and performance</p>
+            <a href="{% url 'groundwater_app:aquifer_analysis' %}" class="btn btn-success">
+              <i class="bi bi-arrow-right"></i> Analyze Data
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body text-center">
+            <div class="mb-3">
+              <i class="bi bi-shield-check text-warning" style="font-size: 3rem;"></i>
+            </div>
+            <h5 class="card-title">Water Quality</h5>
+            <p class="card-text">Monitor water quality parameters</p>
+            <a href="{% url 'groundwater_app:water_quality' %}" class="btn btn-warning">
+              <i class="bi bi-arrow-right"></i> Check Quality
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body text-center">
+            <div class="mb-3">
+              <i class="bi bi-cpu text-danger" style="font-size: 3rem;"></i>
+            </div>
+            <h5 class="card-title">Modeling</h5>
+            <p class="card-text">Run groundwater flow models</p>
+            <a href="{% url 'groundwater_app:modeling' %}" class="btn btn-danger">
+              <i class="bi bi-arrow-right"></i> Start Modeling
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mt-5">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">System Overview</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-3 text-center">
+                <h3 class="text-primary">24</h3>
+                <p class="text-muted">Active Wells</p>
+              </div>
+              <div class="col-md-3 text-center">
+                <h3 class="text-success">12.5 m</h3>
+                <p class="text-muted">Avg Water Level</p>
+              </div>
+              <div class="col-md-3 text-center">
+                <h3 class="text-info">7.2 pH</h3>
+                <p class="text-muted">Avg pH Level</p>
+              </div>
+              <div class="col-md-3 text-center">
+                <h3 class="text-warning">3</h3>
+                <p class="text-muted">Active Models</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{# Use the after_app_content block for modals #}
+{% block after_app_content %}
+  <!-- Example Modal -->
+  <div class="modal fade" id="help-modal" tabindex="-1" role="dialog" aria-labelledby="help-modal-label">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="help-modal-label">Example Modal</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>You can add custom buttons to the app header using the <code>header_buttons</code> block. Use anchor/link tags for the button and wrap it in a div with the class <code>header-button</code>. For buttons with the gliphyicons, add the <code>glyphicon-button</code> class as well.</p>
+          <p>Ever have trouble using a modal in a Tethys app? Use the <code>after_app_content</code> block for modal content to allow them to function properly. See: <a href="https://getbootstrap.com/docs/5.1/components/modal/">Bootstrap Modals</a></p>
+          <p>Add tooltips to any element by adding the <code>data-bs-toggle</code>, <code>data-bs-placement</code>, and <code>title</code> attributes to the button. See: <a href="https://getbootstrap.com/docs/5.1/components/tooltips/">Bootstrap Tooltips</a></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block app_actions %}
+  {% gizmo save_button %}
+  {% gizmo edit_button %}
+  {% gizmo remove_button %}
+  {% gizmo previous_button %}
+  {% gizmo next_button %}
+{% endblock %}

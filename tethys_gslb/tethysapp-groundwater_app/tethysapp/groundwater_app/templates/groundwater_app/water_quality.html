@@ -1,0 +1,178 @@
+{% extends tethys_app.package|add:"/base.html" %}
+{% load tethys %}
+
+{% block header_buttons %}
+  <div class="header-button glyphicon-button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Back to Dashboard">
+    <a href="{% url 'groundwater_app:home' %}"><i class="bi bi-house-fill"></i></a>
+  </div>
+{% endblock %}
+
+{% block app_content %}
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-12">
+        <h1 class="mb-4">
+          <i class="bi bi-shield-check text-warning"></i>
+          Water Quality Monitoring
+        </h1>
+        <p class="lead">Monitor water quality parameters across wells</p>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <h5 class="card-title text-primary">pH Level</h5>
+            <h2 class="display-4">7.2</h2>
+            <p class="text-muted">Average across all wells</p>
+            <div class="progress">
+              <div class="progress-bar bg-success" style="width: 72%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <h5 class="card-title text-info">TDS</h5>
+            <h2 class="display-4">320</h2>
+            <p class="text-muted">mg/L</p>
+            <div class="progress">
+              <div class="progress-bar bg-info" style="width: 65%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <h5 class="card-title text-success">Chloride</h5>
+            <h2 class="display-4">45</h2>
+            <p class="text-muted">mg/L</p>
+            <div class="progress">
+              <div class="progress-bar bg-success" style="width: 30%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <h5 class="card-title text-warning">Nitrate</h5>
+            <h2 class="display-4">8.5</h2>
+            <p class="text-muted">mg/L</p>
+            <div class="progress">
+              <div class="progress-bar bg-warning" style="width: 42%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">Quality Parameters Over Time</h5>
+          </div>
+          <div class="card-body">
+            <canvas id="qualityChart" width="400" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">Alert Status</h5>
+          </div>
+          <div class="card-body">
+            <div class="list-group list-group-flush">
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <span>Normal Range</span>
+                <span class="badge bg-success rounded-pill">18</span>
+              </div>
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <span>Warning Level</span>
+                <span class="badge bg-warning rounded-pill">4</span>
+              </div>
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <span>Critical Level</span>
+                <span class="badge bg-danger rounded-pill">2</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-3">
+          <div class="card-header">
+            <h5 class="mb-0">Recent Tests</h5>
+          </div>
+          <div class="card-body">
+            <small class="text-muted">
+              <div class="mb-2">
+                <strong>W001:</strong> pH 7.1 ✓
+                <br><span class="text-muted">2 hours ago</span>
+              </div>
+              <div class="mb-2">
+                <strong>W003:</strong> TDS 420 mg/L ⚠️
+                <br><span class="text-muted">4 hours ago</span>
+              </div>
+              <div class="mb-2">
+                <strong>W007:</strong> Nitrate 12.5 mg/L ❌
+                <br><span class="text-muted">6 hours ago</span>
+              </div>
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const ctx = document.getElementById('qualityChart').getContext('2d');
+    const qualityChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
+        datasets: [{
+          label: 'pH',
+          data: [7.1, 7.2, 7.0, 7.3, 7.2, 7.2],
+          borderColor: 'rgb(54, 162, 235)',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          yAxisID: 'y'
+        }, {
+          label: 'TDS (mg/L)',
+          data: [310, 320, 315, 330, 325, 320],
+          borderColor: 'rgb(255, 99, 132)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          yAxisID: 'y1'
+        }]
+      },
+      options: {
+        responsive: true,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: {
+              drawOnChartArea: false,
+            },
+          }
+        }
+      }
+    });
+  </script>
+{% endblock %}
